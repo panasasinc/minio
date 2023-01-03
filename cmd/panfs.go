@@ -20,6 +20,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -50,6 +51,10 @@ import (
 
 // PANdefaultEtag etag is used for pre-existing objects.
 var PANdefaultEtag = "00000000000000000000000000000000-2"
+
+const (
+	panfsMetaDir = ".s3"
+)
 
 // PANFSObjects - Implements panfs object layer.
 type PANFSObjects struct {
@@ -428,6 +433,48 @@ func (fs *PANFSObjects) getBucketDir(ctx context.Context, bucket string) (string
 	return bucketDir, nil
 }
 
+// loadBucketMetadata loads bucket metadata. This function is slightly different from bucket-metadata:loadBucketMetadata
+func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string) (BucketMetadata, error) {
+	b := newBucketMetadata(bucket)
+	err := b.Load(ctx, fs, b.Name)
+	if err != nil {
+		if errors.Is(err, errConfigNotFound) {
+			return b, BucketNotFound{Bucket: bucket}
+		}
+		return b, err
+	}
+	b.defaultTimestamps()
+
+	// migrate unencrypted remote targets
+	if err := b.migrateTargetConfig(ctx, fs); err != nil {
+		return b, err
+	}
+
+	return b, nil
+}
+
+// TO_REFACTOR: Let's use cache for bucket metadata path
+func (fs *PANFSObjects) getBucketPanFSPathFromMeta(ctx context.Context, bucket string) (path string, err error) {
+	meta, err := fs.loadBucketMetadata(ctx, bucket)
+	if err != nil {
+		return
+	}
+	path = meta.PanFSPath
+	return
+}
+
+func (fs *PANFSObjects) statPanFSBucketDir(ctx context.Context, bucket string) (os.FileInfo, error) {
+	bucketDir, err := fs.getBucketPanFSPathFromMeta(ctx, bucket)
+	if err != nil {
+		return nil, err
+	}
+	st, err := fsStatVolume(ctx, bucketDir)
+	if err != nil {
+		return nil, err
+	}
+	return st, nil
+}
+
 func (fs *PANFSObjects) statBucketDir(ctx context.Context, bucket string) (os.FileInfo, error) {
 	bucketDir, err := fs.getBucketDir(ctx, bucket)
 	if err != nil {
@@ -458,7 +505,14 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		return toObjectErr(err, bucket)
 	}
 
+	// fsMkdir is fs-v1 specific method. Maybe it makes sense to create panfs-helpers.go...
 	if err = fsMkdir(ctx, bucketDir); err != nil {
+		return toObjectErr(err, bucket)
+	}
+
+	// Creates dir for object metadata for current bucket
+	objectMetadataPath := pathJoin(opts.PanFSBucketPath, panfsMetaDir, bucketMetaPrefix, bucket)
+	if err := mkdirAll(objectMetadataPath, 0o777); err != nil {
 		return toObjectErr(err, bucket)
 	}
 
@@ -515,7 +569,17 @@ func (fs *PANFSObjects) DeleteBucketPolicy(ctx context.Context, bucket string) e
 
 // GetBucketInfo - fetch bucket metadata info.
 func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, opts BucketOptions) (bi BucketInfo, e error) {
-	st, err := fs.statBucketDir(ctx, bucket)
+	// We still have global metabucket here so we need to know whether the target bucket is minio metabucket or not.
+	// There are several calls of GetBucketInfo with `.minio.sys` bucket at the initialization time.
+	// See: listIAMConfigItems.go:listIAMConfigItems
+	var st os.FileInfo
+	var err error
+	if bucket != minioMetaBucket {
+		st, err = fs.statPanFSBucketDir(ctx, bucket)
+	} else {
+		st, err = fs.statBucketDir(ctx, bucket)
+	}
+
 	if err != nil {
 		return bi, toObjectErr(err, bucket)
 	}
@@ -1030,12 +1094,28 @@ func (fs *PANFSObjects) PutObject(ctx context.Context, bucket string, object str
 }
 
 // putObject - wrapper for PutObject
+// This function must be refactored when panasas configuration agent will be fully implemented. Configuration
+// agent moves all configs (IAM, users, groups etc) to the Blob DB instead of storing them on the fs. So the final
+// version of that function should never handle metabucket operations (bucket config, user creation etc). At the moment
+// configs will be stored on the global minio metabucket but the object metadata is moved to the new location - relative
+// to the bucket directory
 func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, retErr error) {
 	data := r.Reader
 
 	// No metadata is set, allocate a new one.
 	meta := cloneMSS(opts.UserDefined)
 	var err error
+
+	// This is new location of object metadata. NOTE: target bucket (at least at the moment)
+	var bucketRootPath string
+	if bucket == minioMetaBucket {
+		bucketRootPath, err = fs.getBucketDir(ctx, bucket)
+	} else {
+		bucketRootPath, err = fs.getBucketPanFSPathFromMeta(ctx, bucket)
+	}
+	if err != nil {
+		return ObjectInfo{}, toObjectErr(err, bucket)
+	}
 
 	// Validate if bucket name is valid and exists.
 	if _, err = fs.statBucketDir(ctx, bucket); err != nil {
@@ -1068,7 +1148,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 
 	var wlk *lock.LockedFile
 	if bucket != minioMetaBucket {
-		bucketMetaDir := pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix)
+		bucketMetaDir := pathJoin(bucketRootPath, panfsMetaDir, bucketMetaPrefix)
 		fsMetaPath := pathJoin(bucketMetaDir, bucket, object, fs.metaJSONFile)
 		wlk, err = fs.rwPool.Write(fsMetaPath)
 		var freshFile bool
@@ -1133,7 +1213,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	}
 
 	// Stat the file to fetch timestamp, size.
-	fi, err := fsStatFile(ctx, pathJoin(fs.fsPath, bucket, object))
+	fi, err := fsStatFile(ctx, fsNSObjPath)
 	if err != nil {
 		return ObjectInfo{}, toObjectErr(err, bucket, object)
 	}
