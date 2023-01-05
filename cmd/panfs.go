@@ -1182,7 +1182,14 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	// so that cleaning it up will be easy if the server goes down.
 	tempObj := mustGetUUID()
 
-	fsTmpObjPath := pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID, tempObj)
+	var fsTmpObjPath string
+	// This is to handle bucket metadata which is still using .minio.sys
+	if bucket != minioMetaBucket {
+		fsTmpObjPath = pathJoin(bucketDir, panfsMetaDir, "tmp", fs.fsUUID, tempObj)
+	} else {
+		fsTmpObjPath = pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID, tempObj)
+	}
+	// fsTmpObjPath := pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID, tempObj)
 	bytesWritten, err := fsCreateFile(ctx, fsTmpObjPath, data, data.Size())
 
 	// Delete the temporary object in the case of a
