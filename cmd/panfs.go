@@ -53,7 +53,8 @@ import (
 var PANdefaultEtag = "00000000000000000000000000000000-2"
 
 const (
-	panfsMetaDir = ".s3"
+	panfsMetaDir   = ".s3"
+	objMetadataDir = "metadata"
 )
 
 // PANFSObjects - Implements panfs object layer.
@@ -459,7 +460,7 @@ func (fs *PANFSObjects) getBucketPanFSPathFromMeta(ctx context.Context, bucket s
 	if err != nil {
 		return
 	}
-	path = meta.PanFSPath
+	path = pathJoin(meta.PanFSPath, bucket)
 	return
 }
 
@@ -511,7 +512,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	}
 
 	// Creates dir for object metadata for current bucket
-	objectMetadataPath := pathJoin(opts.PanFSBucketPath, panfsMetaDir, bucketMetaPrefix, bucket)
+	objectMetadataPath := pathJoin(opts.PanFSBucketPath, bucket, panfsMetaDir, objMetadataDir)
 	if err := mkdirAll(objectMetadataPath, 0o777); err != nil {
 		return toObjectErr(err, bucket)
 	}
@@ -1107,11 +1108,11 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	var err error
 
 	// This is new location of object metadata. NOTE: target bucket (at least at the moment)
-	var bucketRootPath string
+	var bucketDir string
 	if bucket == minioMetaBucket {
-		bucketRootPath, err = fs.getBucketDir(ctx, bucket)
+		bucketDir, err = fs.getBucketDir(ctx, bucket)
 	} else {
-		bucketRootPath, err = fs.getBucketPanFSPathFromMeta(ctx, bucket)
+		bucketDir, err = fs.getBucketPanFSPathFromMeta(ctx, bucket)
 	}
 	if err != nil {
 		return ObjectInfo{}, toObjectErr(err, bucket)
@@ -1148,8 +1149,8 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 
 	var wlk *lock.LockedFile
 	if bucket != minioMetaBucket {
-		bucketMetaDir := pathJoin(bucketRootPath, panfsMetaDir, bucketMetaPrefix)
-		fsMetaPath := pathJoin(bucketMetaDir, bucket, object, fs.metaJSONFile)
+		bucketMetaDir := pathJoin(bucketDir, panfsMetaDir, objMetadataDir)
+		fsMetaPath := pathJoin(bucketMetaDir, object, fs.metaJSONFile)
 		wlk, err = fs.rwPool.Write(fsMetaPath)
 		var freshFile bool
 		if err != nil {
@@ -1170,7 +1171,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 			// existing object
 			if retErr != nil && freshFile {
 				tmpDir := pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID)
-				fsRemoveMeta(ctx, bucketMetaDir, fsMetaPath, tmpDir)
+				fsRemoveMeta(ctx, bucketMetaDir, fsMetaPath, tmpDir) // TODO: check this delete
 			}
 		}()
 	}
