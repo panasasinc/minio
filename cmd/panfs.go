@@ -505,7 +505,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	if err != nil {
 		return toObjectErr(err, bucket)
 	}
-
+	// TODO: The following two mkdir statements will be replaced by the single one ## Dmitri Z.
 	// fsMkdir is fs-v1 specific method. Maybe it makes sense to create panfs-helpers.go...
 	if err = fsMkdir(ctx, bucketDir); err != nil {
 		return toObjectErr(err, bucket)
@@ -1280,8 +1280,11 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 
 	var rwlk *lock.LockedFile
 
-	minioMetaBucketDir := pathJoin(fs.fsPath, minioMetaBucket)
-	fsMetaPath := pathJoin(minioMetaBucketDir, bucketMetaPrefix, bucket, object, fs.metaJSONFile)
+	bucketPanfsDir, err := fs.getBucketPanFSPathFromMeta(ctx, bucket)
+	if err != nil {
+		return objInfo, toObjectErr(err, bucket)
+	}
+	fsMetaPath := pathJoin(bucketPanfsDir, panfsMetaDir, objMetadataDir, object, fs.metaJSONFile)
 	if bucket != minioMetaBucket {
 		rwlk, err = fs.rwPool.Write(fsMetaPath)
 		if err != nil && err != errFileNotFound {
@@ -1305,7 +1308,7 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 
 	if bucket != minioMetaBucket {
 		// Delete the metadata object.
-		err = fsDeleteFile(ctx, minioMetaBucketDir, fsMetaPath)
+		err = fsDeleteFile(ctx, pathJoin(bucketPanfsDir, panfsMetaDir, objMetadataDir), fsMetaPath)
 		if err != nil && err != errFileNotFound {
 			return objInfo, toObjectErr(err, bucket, object)
 		}
