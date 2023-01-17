@@ -1339,12 +1339,25 @@ func (fs *PANFSObjects) listDirFactory() ListDirFunc {
 		if len(entries) == 0 {
 			return true, nil, false
 		}
+		entries = fs.filterPanFSS3Dir(entries)
 		entries, delayIsLeaf = filterListEntries(bucket, prefixDir, entries, prefixEntry, fs.isLeaf)
 		return false, entries, delayIsLeaf
 	}
 
 	// Return list factory instance.
 	return listDir
+}
+
+// filterPanFSS3Dir return entries that does not have .s3 prefix
+func (fs *PANFSObjects) filterPanFSS3Dir(entries []string) (filtered []string) {
+	filtered = entries[:0]
+	for _, entry := range entries {
+		if HasPrefix(entry, ".s3") {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return
 }
 
 // isObjectDir returns true if the specified bucket & prefix exists
