@@ -434,7 +434,8 @@ func (fs *PANFSObjects) getBucketDir(ctx context.Context, bucket string) (string
 	return bucketDir, nil
 }
 
-// loadBucketMetadata loads bucket metadata. This function is slightly different from bucket-metadata:loadBucketMetadata
+// loadBucketMetadata loads bucket metadata from the disk. TODO: this function should use the configuration agent
+// Returns an error when the bucket metadata file not found
 func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string) (BucketMetadata, error) {
 	b := newBucketMetadata(bucket)
 	err := b.Load(ctx, fs, b.Name)
@@ -1339,7 +1340,7 @@ func (fs *PANFSObjects) listDirFactory() ListDirFunc {
 		if len(entries) == 0 {
 			return true, nil, false
 		}
-		entries = fs.filterPanFSS3Dir(entries)
+		entries = fs.filterOutPanFSS3Dir(entries)
 		entries, delayIsLeaf = filterListEntries(bucket, prefixDir, entries, prefixEntry, fs.isLeaf)
 		return false, entries, delayIsLeaf
 	}
@@ -1348,8 +1349,8 @@ func (fs *PANFSObjects) listDirFactory() ListDirFunc {
 	return listDir
 }
 
-// filterPanFSS3Dir return entries that does not have .s3 prefix
-func (fs *PANFSObjects) filterPanFSS3Dir(entries []string) (filtered []string) {
+// filterPanFSS3Dir removes entries with .s3 prefix from the result
+func (fs *PANFSObjects) filterOutPanFSS3Dir(entries []string) (filtered []string) {
 	filtered = entries[:0]
 	for _, entry := range entries {
 		if HasPrefix(entry, ".s3") {
