@@ -1189,7 +1189,6 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	} else {
 		fsTmpObjPath = pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID, tempObj)
 	}
-	// fsTmpObjPath := pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID, tempObj)
 	bytesWritten, err := fsCreateFile(ctx, fsTmpObjPath, data, data.Size())
 
 	// Delete the temporary object in the case of a
