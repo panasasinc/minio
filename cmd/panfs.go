@@ -55,6 +55,7 @@ var PANdefaultEtag = "00000000000000000000000000000000-2"
 const (
 	panfsMetaDir   = ".s3"
 	objMetadataDir = "metadata"
+	tmpDir         = "tmp"
 )
 
 // PANFSObjects - Implements panfs object layer.
@@ -512,9 +513,14 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		return toObjectErr(err, bucket)
 	}
 
-	// Creates dir for object metadata for current bucket
-	objectMetadataPath := pathJoin(opts.PanFSBucketPath, bucket, panfsMetaDir, objMetadataDir)
-	if err := mkdirAll(objectMetadataPath, 0o777); err != nil {
+	bucketMetaDir := pathJoin(opts.PanFSBucketPath, bucket, panfsMetaDir)
+	// Create dir for object metadata
+	if err := mkdirAll(pathJoin(bucketMetaDir, objMetadataDir), 0o777); err != nil {
+		return toObjectErr(err, bucket)
+	}
+
+	// Create dir for temporary uploads
+	if err := mkdirAll(pathJoin(bucketMetaDir, tmpDir), 0o777); err != nil {
 		return toObjectErr(err, bucket)
 	}
 
