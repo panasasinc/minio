@@ -1191,7 +1191,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	var fsTmpObjPath string
 	// This is to handle bucket metadata which is still using .minio.sys
 	if bucket != minioMetaBucket {
-		fsTmpObjPath = pathJoin(bucketDir, panfsMetaDir, "tmp", fs.fsUUID, tempObj)
+		fsTmpObjPath = pathJoin(bucketDir, panfsMetaDir, tmpDir, fs.fsUUID, tempObj)
 	} else {
 		fsTmpObjPath = pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID, tempObj)
 	}
