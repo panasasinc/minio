@@ -1294,10 +1294,10 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 	var rwlk *lock.LockedFile
 
 	var bucketPanfsDir string
-	// DeleteObject operation now also handles the configuration objects. Configuration agent will handle such kind of
-	// operation (e.g. user/policy/group ops) and then panfs backed only will be responsible for object (real data)
-	// operations. At the moment we need to check whether the target bucket is the minio system bucket which stores
-	// all config files.
+	// DeleteObject operation at the moment handles the configuration objects. Configuration agent will handle such
+	// kind of operations (e.g. user/policy/group ops) and then panfs backend only will be responsible for object
+	//(real data) operations. At the moment we need to check whether the target bucket is the minio system bucket which
+	//stores all config files.
 	// TODO: remove this if..else block when config agent will be here
 	if bucket != minioMetaBucket {
 		bucketPanfsDir, err = fs.getBucketPanFSPathFromMeta(ctx, bucket)
