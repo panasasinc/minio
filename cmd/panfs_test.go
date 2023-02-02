@@ -201,7 +201,9 @@ func TestPANFSPutObject(t *testing.T) {
 // TestPANFSDeleteObject - test fs.DeleteObject() with healthy and corrupted disks
 func TestPANFSDeleteObject(t *testing.T) {
 	// Prepare for tests
-	disk := filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
+	bucketName := getRandomBucketName()
+	objectName := getRandomObjectName()
+	obj, disk := initPanFSWithBucket(bucketName, t)
 	defer os.RemoveAll(disk)
 
 	obj, err := initPanFSObjects(disk)
@@ -209,8 +211,6 @@ func TestPANFSDeleteObject(t *testing.T) {
 		t.Fatal(err)
 	}
 	fs := obj.(*PANFSObjects)
-	bucketName := "bucket"
-	objectName := "object"
 
 	obj.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{})
 	obj.PutObject(GlobalContext, bucketName, objectName, mustGetPutObjReader(t, bytes.NewReader([]byte("abcd")), int64(len("abcd")), "", ""), ObjectOptions{})
