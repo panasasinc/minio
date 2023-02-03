@@ -109,7 +109,6 @@ func initMetaVolumePANFS(fsPath, fsUUID string) error {
 	if err := os.MkdirAll(metaBucketPath, 0o777); err != nil {
 		return err
 	}
-	// TODO: remove dir creation at this step. All dirs are created during bucket creation
 	metaTmpPath := pathJoin(fsPath, minioMetaTmpBucket, fsUUID)
 	if err := os.MkdirAll(metaTmpPath, 0o777); err != nil {
 		return err
