@@ -32,7 +32,7 @@ import (
 )
 
 // initPanFSWithBucket initializes the panfs backend and creates a bucket for testing
-//Fail test when object init or bucket creation will fail
+// Fail test when object init or bucket creation will fail
 func initPanFSWithBucket(bucket string, t *testing.T) (obj ObjectLayer, disk string) {
 	disk = filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
 
@@ -321,7 +321,3 @@ func TestPANFSPutObjectPart(t *testing.T) {
 		t.Fatalf("Expectied size %v but found %v", expectedSize, pi.Size)
 	}
 }
-
-//func TestPANFSCompleteMultipartUpload(t *testing.T) {
-//	t.Skip()
-//}
