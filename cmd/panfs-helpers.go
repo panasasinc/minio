@@ -1,0 +1,49 @@
+package cmd
+
+import (
+	"context"
+	"os"
+
+	"github.com/minio/minio/internal/logger"
+)
+
+func removePanFSBucketDir(ctx context.Context, dirPath string) (err error) {
+	if dirPath == "" {
+		logger.LogIf(ctx, errInvalidArgument)
+		return errInvalidArgument
+	}
+
+	if err = checkPathLength(dirPath); err != nil {
+		logger.LogIf(ctx, err)
+		return err
+	}
+
+	// if only .s3 is in bucket dir - then delete
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		logger.LogIf(ctx, err)
+		return err
+	}
+	if len(entries) > 1 {
+		// Only single entry (.s3 directory) allowed to be inside bucket dir to consider bucket as empty
+		return errVolumeNotEmpty
+	}
+	if len(entries) != 0 {
+		entryInfo, err := entries[0].Info()
+		if err != nil {
+			logger.LogIf(ctx, err)
+			return err
+		}
+		if entryInfo.Name() != panfsMetaDir {
+			return errVolumeNotEmpty
+		}
+	}
+	if err = removeAll(dirPath); err != nil {
+		if osIsNotExist(err) {
+			return errVolumeNotFound
+		}
+		logger.LogIf(ctx, err)
+		return err
+	}
+	return nil
+}

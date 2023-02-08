@@ -357,3 +357,5 @@ func TestPANFSHealObjects(t *testing.T) {
 		t.Fatalf("Heal Object should return NotImplemented error ")
 	}
 }
+
+// TODO: add test cases for .s3 put/delete/copy operation - negative

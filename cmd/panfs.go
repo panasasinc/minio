@@ -467,6 +467,18 @@ func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string) (
 	return b, nil
 }
 
+// checkForS3Prefix validates the input arguments to do not have .s3 prefix in the path.
+// Returns an error if any of objects contains .s3 in its path. If there are multiple objects with the .s3 prefix then
+// the error will contain only info about first invalid object
+func checkForS3Prefix(objects ...string) error {
+	for _, item := range objects {
+		if strings.HasPrefix(item, panfsMetaDir+SlashSeparator) {
+			return ObjectNameInvalid{Object: item}
+		}
+	}
+	return nil
+}
+
 // TO_REFACTOR: Let's use cache for bucket metadata path
 func (fs *PANFSObjects) getBucketPanFSPathFromMeta(ctx context.Context, bucket string) (path string, err error) {
 	meta, err := fs.loadBucketMetadata(ctx, bucket)
@@ -712,7 +724,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 
 	if !opts.Force {
 		// Attempt to delete regular bucket.
-		if err = fsRemoveDir(ctx, bucketDir); err != nil {
+		if err = removePanFSBucketDir(ctx, bucketDir); err != nil {
 			return toObjectErr(err, bucket)
 		}
 	} else {
@@ -761,6 +773,10 @@ func (fs *PANFSObjects) CopyObject(ctx context.Context, srcBucket, srcObject, ds
 			Object:    srcObject,
 			VersionID: srcOpts.VersionID,
 		}
+	}
+
+	if err = checkForS3Prefix(srcObject, dstObject); err != nil {
+		return oi, err
 	}
 
 	cpSrcDstSame := isStringEqual(pathJoin(srcBucket, srcObject), pathJoin(dstBucket, dstObject))
@@ -1130,6 +1146,10 @@ func (fs *PANFSObjects) GetObjectInfo(ctx context.Context, bucket, object string
 		}
 	}
 
+	if e = checkForS3Prefix(object); e != nil {
+		return oi, e
+	}
+
 	oi, err := fs.getObjectInfoWithLock(ctx, bucket, object)
 	if err == errCorruptedFormat || err == io.EOF {
 		lk := fs.NewNSLock(bucket, object)
@@ -1158,6 +1178,10 @@ func (fs *PANFSObjects) GetObjectInfo(ctx context.Context, bucket, object string
 func (fs *PANFSObjects) PutObject(ctx context.Context, bucket string, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	if opts.Versioned {
 		return objInfo, NotImplemented{}
+	}
+
+	if err = checkForS3Prefix(object); err != nil {
+		return objInfo, err
 	}
 
 	if err := checkPutObjectArgs(ctx, bucket, object, fs); err != nil {
@@ -1358,6 +1382,10 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 			Object:    object,
 			VersionID: opts.VersionID,
 		}
+	}
+
+	if err = checkForS3Prefix(object); err != nil {
+		return objInfo, err
 	}
 
 	defer NSUpdated(bucket, object)

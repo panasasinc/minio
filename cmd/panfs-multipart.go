@@ -233,6 +233,9 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 		return nil, toObjectErr(err, bucket)
 	}
 
+	if err := checkForS3Prefix(object); err != nil {
+		return nil, err
+	}
 	if _, err := fs.statBucketDir(ctx, bucket); err != nil {
 		return nil, toObjectErr(err, bucket)
 	}
