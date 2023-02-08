@@ -20,6 +20,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -355,6 +356,38 @@ func TestPANFSHealObjects(t *testing.T) {
 	err := obj.HealObjects(GlobalContext, "bucket", "prefix", madmin.HealOpts{}, nil)
 	if err == nil || !isSameType(err, NotImplemented{}) {
 		t.Fatalf("Heal Object should return NotImplemented error ")
+	}
+}
+
+// TestCheckForS3Prefix
+func TestCheckForS3Prefix(t *testing.T) {
+	testCases := []struct {
+		input         []string
+		shouldPass    bool
+		expectedError error
+	}{
+		{[]string{"valid", ""}, true, nil},
+		{[]string{}, true, nil},
+		{[]string{"file", ".s3file"}, true, nil},
+		{[]string{"file", ".s3/file"}, false, ObjectNameInvalid{Object: ".s3/file"}},
+		{[]string{"file", ".s3/file", ".s3/nextfile"}, false, ObjectNameInvalid{Object: ".s3/file"}},
+	}
+
+	for _, tc := range testCases {
+		err := checkForS3Prefix(tc.input...)
+		if err != nil && !tc.shouldPass {
+			if !errors.Is(err, tc.expectedError) {
+				t.Fatalf("Expected error %v, got %v", tc.expectedError, err)
+			}
+		}
+
+		if err == nil && !tc.shouldPass {
+			t.Fatalf("Expecting an error %v", tc.expectedError)
+		}
+
+		if err != nil && tc.shouldPass {
+			t.Fatalf("Unexpected error %v", err)
+		}
 	}
 }
 
