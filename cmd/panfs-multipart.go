@@ -891,7 +891,7 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 
 	// Purge multipart folders
 	{
-		fsTmpObjPath := pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID, mustGetUUID())
+		fsTmpObjPath := pathJoin(bucketPath, panfsS3TmpDir, fs.fsUUID, mustGetUUID())
 		defer fsRemoveAll(ctx, fsTmpObjPath) // remove multipart temporary files in background.
 
 		Rename(uploadIDDir, fsTmpObjPath)
