@@ -467,18 +467,6 @@ func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string) (
 	return b, nil
 }
 
-// checkForS3Prefix validates the input arguments to do not have .s3 prefix in the path.
-// Returns an error if any of objects contains .s3 in its path. If there are multiple objects with the .s3 prefix then
-// the error will contain only info about first invalid object
-func checkForS3Prefix(objects ...string) error {
-	for _, item := range objects {
-		if strings.HasPrefix(item, panfsMetaDir+SlashSeparator) {
-			return ObjectNameInvalid{Object: item}
-		}
-	}
-	return nil
-}
-
 // TO_REFACTOR: Let's use cache for bucket metadata path
 func (fs *PANFSObjects) getBucketPanFSPathFromMeta(ctx context.Context, bucket string) (path string, err error) {
 	meta, err := fs.loadBucketMetadata(ctx, bucket)
@@ -519,6 +507,11 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		return NotImplemented{}
 	}
 
+	// Do not allow to create bucket with .s3 name
+	if err := dotS3PrefixCheck(bucket); err != nil {
+		return err
+	}
+
 	// Verify if bucket is valid.
 	if s3utils.CheckValidBucketNameStrict(bucket) != nil {
 		return BucketNameInvalid{Bucket: bucket}
@@ -530,7 +523,6 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	if err != nil {
 		return toObjectErr(err, bucket)
 	}
-	// TODO: The following two mkdir statements will be replaced by the single one ## Dmitri Z.
 	// fsMkdir is fs-v1 specific method. Maybe it makes sense to create panfs-helpers.go...
 	if err = fsMkdir(ctx, bucketDir); err != nil {
 		return toObjectErr(err, bucket)
@@ -717,6 +709,10 @@ func (fs *PANFSObjects) ListBuckets(ctx context.Context, opts BucketOptions) ([]
 func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts DeleteBucketOptions) error {
 	defer NSUpdated(bucket, slashSeparator)
 
+	if err := dotS3PrefixCheck(bucket); err != nil {
+		return err
+	}
+
 	bucketDir, err := fs.getBucketDir(ctx, bucket)
 	if err != nil {
 		return toObjectErr(err, bucket)
@@ -775,7 +771,7 @@ func (fs *PANFSObjects) CopyObject(ctx context.Context, srcBucket, srcObject, ds
 		}
 	}
 
-	if err = checkForS3Prefix(srcObject, dstObject); err != nil {
+	if err = dotS3PrefixCheck(srcBucket, dstBucket, srcObject, dstObject); err != nil {
 		return oi, err
 	}
 
@@ -1146,7 +1142,7 @@ func (fs *PANFSObjects) GetObjectInfo(ctx context.Context, bucket, object string
 		}
 	}
 
-	if e = checkForS3Prefix(object); e != nil {
+	if e = dotS3PrefixCheck(bucket, object); e != nil {
 		return oi, e
 	}
 
@@ -1180,7 +1176,7 @@ func (fs *PANFSObjects) PutObject(ctx context.Context, bucket string, object str
 		return objInfo, NotImplemented{}
 	}
 
-	if err = checkForS3Prefix(object); err != nil {
+	if err := dotS3PrefixCheck(bucket, object); err != nil {
 		return objInfo, err
 	}
 
@@ -1384,7 +1380,7 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 		}
 	}
 
-	if err = checkForS3Prefix(object); err != nil {
+	if err = dotS3PrefixCheck(bucket, object); err != nil {
 		return objInfo, err
 	}
 
@@ -1600,6 +1596,11 @@ func (fs *PANFSObjects) ListObjects(ctx context.Context, bucket, prefix, marker,
 	// Therefore, it cannot set a NextMarker.
 	// In that case we retry the operation, but we add a
 	// max limit, so we never end up in an infinite loop.
+
+	if err = dotS3PrefixCheck(bucket, prefix); err != nil {
+		return loi, err
+	}
+
 	tries := 50
 	for {
 		loi, err = listObjects(ctx, fs, bucket, prefix, marker, delimiter, maxKeys, fs.listPool,

@@ -233,9 +233,10 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 		return nil, toObjectErr(err, bucket)
 	}
 
-	if err := checkForS3Prefix(object); err != nil {
+	if err := dotS3PrefixCheck(bucket, object); err != nil {
 		return nil, err
 	}
+
 	if _, err := fs.statBucketDir(ctx, bucket); err != nil {
 		return nil, toObjectErr(err, bucket)
 	}
@@ -291,6 +292,10 @@ func (fs *PANFSObjects) CopyObjectPart(ctx context.Context, srcBucket, srcObject
 			Object:    srcObject,
 			VersionID: srcOpts.VersionID,
 		}
+	}
+
+	if e = dotS3PrefixCheck(srcBucket, srcObject, dstBucket, dstObject); e != nil {
+		return pi, e
 	}
 
 	if err := checkNewMultipartArgs(ctx, srcBucket, srcObject, fs); err != nil {
