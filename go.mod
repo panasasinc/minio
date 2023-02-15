@@ -13,7 +13,7 @@ require (
 	github.com/buger/jsonparser v1.1.1
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb v1.0.29
-	github.com/coredns/coredns v1.9.4
+	github.com/coredns/coredns v1.10.0
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/cosnicolaou/pbzip2 v1.0.1
 	github.com/dchest/siphash v1.2.3
