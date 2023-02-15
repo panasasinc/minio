@@ -164,9 +164,8 @@ github.com/cncf/xds/go v0.0.0-20210922020428-25de7278fc84/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/containerd/console v1.0.3 h1:lIr7SlA5PxZyMV30bDW0MGbiOPXwc63yRuCP0ARubLw=
-github.com/coredns/coredns v1.10.0 h1:jCfuWsBjTs0dapkkhISfPCzn5LqvSRtrFtaf/Tjj4DI=
-github.com/coredns/coredns v1.10.0/go.mod h1:CIfRU5TgpuoIiJBJ4XrofQzfFQpPFh32ERpUevrSlaw=
-github.com/coredns/coredns v1.9.4/go.mod h1:I5S7QivE50qZVwi5Az8rB8xKFsg10aFn5Yw7+18LEZo=
+github.com/coredns/coredns v1.10.1 h1:6OyL7tcvYxeNHONj5iQlVM2GXBzAOq57L3/LUKP1DbA=
+github.com/coredns/coredns v1.10.1/go.mod h1:oGgoY6cRrdJzKgNrsT30Hztu7/MutSHCYwqGDWngXCc=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-etcd v2.0.0+incompatible/go.mod h1:Jez6KQU2B/sWsbdaef3ED8NzMklzPG4d5KIOhIy30Tk=
 github.com/coreos/go-oidc v2.2.1+incompatible h1:mh48q/BqXqgjVHpy2ZY7WnWAbenxRjsz9N1i1YxjHAk=
