@@ -1,6 +1,9 @@
 name: Staging
 
-on: [pull_request]
+on:
+  pull_request:
+    branches:
+    - panasas-dev
 
 # This ensures that previous jobs for the PR are canceled when the PR is
 # updated.
