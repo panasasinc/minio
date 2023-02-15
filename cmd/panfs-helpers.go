@@ -8,6 +8,8 @@ import (
 	"github.com/minio/minio/internal/logger"
 )
 
+// removePanFSBucketDir removes panfs bucket only if it is empty. We consider the bucket as empty if it is contains no
+// files and other directories or contains only .s3 directory which is hidden from the user
 func removePanFSBucketDir(ctx context.Context, dirPath string) (err error) {
 	if dirPath == "" {
 		logger.LogIf(ctx, errInvalidArgument)
