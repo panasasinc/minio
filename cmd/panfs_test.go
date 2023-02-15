@@ -366,7 +366,7 @@ func TestPANFSHealObjects(t *testing.T) {
 }
 
 // TestCheckForS3Prefix
-func TestCheckForS3Prefix(t *testing.T) {
+func TestDotS3PrefixCheck(t *testing.T) {
 	testCases := []struct {
 		input         []string
 		shouldPass    bool
@@ -375,8 +375,8 @@ func TestCheckForS3Prefix(t *testing.T) {
 		{[]string{"valid", ""}, true, nil},
 		{[]string{}, true, nil},
 		{[]string{"file", ".s3file"}, true, nil},
-		{[]string{"file", ".s3/file"}, false, errInvalidArgumentNameS3},
-		{[]string{"file", ".s3/file", ".s3/nextfile"}, false, errInvalidArgumentNameS3},
+		{[]string{"file", ".s3/file"}, false, PanFSS3InvalidName{}},
+		{[]string{"file", ".s3/file", ".s3/nextfile"}, false, PanFSS3InvalidName{}},
 	}
 
 	for _, tc := range testCases {
