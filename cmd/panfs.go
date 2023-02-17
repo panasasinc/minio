@@ -514,8 +514,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	}
 
 	// Create dir for temporary uploads
-	metaTmpPath := pathJoin(bucketMetaDir, tmpDir)
-	if err := mkdirAll(metaTmpPath, 0o777); err != nil {
+	if err := mkdirAll(pathJoin(bucketMetaDir, tmpDir), 0o777); err != nil {
 		return toObjectErr(err, bucket)
 	}
 
