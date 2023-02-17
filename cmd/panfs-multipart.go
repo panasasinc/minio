@@ -41,13 +41,11 @@ const (
 )
 
 // Returns EXPORT/bucket/.s3/multipart/SHA256/UPLOADID
-// TODO: refactoring. Add context to the arguments. Use getBucketPath from metadata. Remove bucketPath argument.
 func (fs *PANFSObjects) getUploadIDDir(bucketPath, bucket, object, uploadID string) string {
 	return pathJoin(bucketPath, panfsS3MultipartDir, getSHA256Hash([]byte(pathJoin(bucket, object))), uploadID)
 }
 
 // Returns EXPORT/bucket/.s3/multipart/SHA256
-// TODO: refactoring. Add context to the arguments. Remove bucketPath argument.
 func (fs *PANFSObjects) getMultipartSHADir(bucketPath, bucket, object string) string {
 	return pathJoin(bucketPath, panfsS3MultipartDir, getSHA256Hash([]byte(pathJoin(bucket, object))))
 }
