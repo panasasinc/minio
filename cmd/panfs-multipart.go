@@ -374,9 +374,7 @@ func (fs *PANFSObjects) PutObjectPart(ctx context.Context, bucket, object, uploa
 
 	// Make sure not to create parent directories if they don't exist - the upload might have been aborted.
 	if err = Rename(tmpPartPath, partPath); err != nil {
-		if err != nil {
-			return pi, InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
-		}
+		return pi, InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
 	}
 
 	go fs.backgroundAppend(context.Background(), bucket, object, uploadID)
