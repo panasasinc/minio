@@ -364,6 +364,15 @@ func fsRenameFile(ctx context.Context, sourcePath, destPath string) error {
 	return nil
 }
 
+func fsRenameFile2(ctx context.Context, sourcePath, destPath string) error {
+	if err := renameAll2(sourcePath, destPath); err != nil {
+		logger.LogIf(ctx, err)
+		return err
+	}
+
+	return nil
+}
+
 func deleteFile(basePath, deletePath string, recursive bool) error {
 	if basePath == "" || deletePath == "" {
 		return nil

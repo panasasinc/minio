@@ -1063,34 +1063,37 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 		return ObjectInfo{}, errInvalidArgument
 	}
 
-	var wlk *lock.LockedFile
-	if bucket != minioMetaBucket {
-		bucketMetaDir := pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix)
-		fsMetaPath := pathJoin(bucketMetaDir, bucket, object, fs.metaJSONFile)
-		wlk, err = fs.rwPool.Write(fsMetaPath)
-		var freshFile bool
-		if err != nil {
-			wlk, err = fs.rwPool.Create(fsMetaPath)
+	/*
+		POC - do not store metadata at all
+		var wlk *lock.LockedFile
+		if bucket != minioMetaBucket {
+			bucketMetaDir := pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix)
+			fsMetaPath := pathJoin(bucketMetaDir, bucket, object, fs.metaJSONFile)
+			wlk, err = fs.rwPool.Write(fsMetaPath)
+			var freshFile bool
 			if err != nil {
-				logger.LogIf(ctx, err)
-				return ObjectInfo{}, toObjectErr(err, bucket, object)
+				wlk, err = fs.rwPool.Create(fsMetaPath)
+				if err != nil {
+					logger.LogIf(ctx, err)
+					return ObjectInfo{}, toObjectErr(err, bucket, object)
+				}
+				freshFile = true
 			}
-			freshFile = true
+			// This close will allow for locks to be synchronized on `fs.json`.
+			defer wlk.Close()
+			defer func() {
+				// Remove meta file when PutObject encounters
+				// any error and it is a fresh file.
+				//
+				// We should preserve the `fs.json` of any
+				// existing object
+				if retErr != nil && freshFile {
+					tmpDir := pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID)
+					fsRemoveMeta(ctx, bucketMetaDir, fsMetaPath, tmpDir)
+				}
+			}()
 		}
-		// This close will allow for locks to be synchronized on `fs.json`.
-		defer wlk.Close()
-		defer func() {
-			// Remove meta file when PutObject encounters
-			// any error and it is a fresh file.
-			//
-			// We should preserve the `fs.json` of any
-			// existing object
-			if retErr != nil && freshFile {
-				tmpDir := pathJoin(fs.fsPath, minioMetaTmpBucket, fs.fsUUID)
-				fsRemoveMeta(ctx, bucketMetaDir, fsMetaPath, tmpDir)
-			}
-		}()
-	}
+	*/
 
 	// Uploaded object will first be written to the temporary location which will eventually
 	// be renamed to the actual location. It is first written to the temporary location
@@ -1118,16 +1121,19 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 
 	// Entire object was written to the temp location, now it's safe to rename it to the actual location.
 	fsNSObjPath := pathJoin(fs.fsPath, bucket, object)
-	if err = fsRenameFile(ctx, fsTmpObjPath, fsNSObjPath); err != nil {
+	if err = fsRenameFile2(ctx, fsTmpObjPath, fsNSObjPath); err != nil {
 		return ObjectInfo{}, toObjectErr(err, bucket, object)
 	}
 
-	if bucket != minioMetaBucket {
-		// Write FS metadata after a successful namespace operation.
-		if _, err = fsMeta.WriteTo(wlk); err != nil {
-			return ObjectInfo{}, toObjectErr(err, bucket, object)
+	/*
+		POC do not store metadata at all
+		if bucket != minioMetaBucket {
+			// Write FS metadata after a successful namespace operation.
+			if _, err = fsMeta.WriteTo(wlk); err != nil {
+				return ObjectInfo{}, toObjectErr(err, bucket, object)
+			}
 		}
-	}
+	*/
 
 	// Stat the file to fetch timestamp, size.
 	fi, err := fsStatFile(ctx, pathJoin(fs.fsPath, bucket, object))
