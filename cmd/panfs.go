@@ -857,6 +857,11 @@ func (fs *PANFSObjects) GetObjectNInfo(ctx context.Context, bucket, object strin
 			VersionID: opts.VersionID,
 		}
 	}
+
+	if err = dotS3PrefixCheck(bucket, object); err != nil {
+		return
+	}
+
 	if err = checkGetObjArgs(ctx, bucket, object); err != nil {
 		return nil, err
 	}
