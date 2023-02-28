@@ -1138,7 +1138,7 @@ func (fs *PANFSObjects) getObjectInfoWithLock(ctx context.Context, bucket, objec
 }
 
 // GetObjectInfo - reads object metadata and replies back ObjectInfo.
-func (fs *PANFSObjects) GetObjectInfo(ctx context.Context, bucket, object string, opts ObjectOptions) (oi ObjectInfo, e error) {
+func (fs *PANFSObjects) GetObjectInfo(ctx context.Context, bucket, object string, opts ObjectOptions) (oi ObjectInfo, err error) {
 	if opts.VersionID != "" && opts.VersionID != nullVersionID {
 		return oi, VersionNotFound{
 			Bucket:    bucket,
@@ -1147,11 +1147,11 @@ func (fs *PANFSObjects) GetObjectInfo(ctx context.Context, bucket, object string
 		}
 	}
 
-	if e = dotS3PrefixCheck(bucket, object); e != nil {
-		return oi, e
+	if err = dotS3PrefixCheck(bucket, object); err != nil {
+		return oi, err
 	}
 
-	oi, err := fs.getObjectInfoWithLock(ctx, bucket, object)
+	oi, err = fs.getObjectInfoWithLock(ctx, bucket, object)
 	if err == errCorruptedFormat || err == io.EOF {
 		lk := fs.NewNSLock(bucket, object)
 		lkctx, err := lk.GetLock(ctx, globalOperationTimeout)
