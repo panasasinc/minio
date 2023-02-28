@@ -383,16 +383,16 @@ func TestDotS3PrefixCheck(t *testing.T) {
 		err := dotS3PrefixCheck(tc.input...)
 		if err != nil && !tc.shouldPass {
 			if !errors.Is(err, tc.expectedError) {
-				t.Fatalf("Expected error %v, got %v", tc.expectedError, err)
+				t.Fatalf("Expected error %v, got %v. Input args: %v", tc.expectedError, err, tc.input)
 			}
 		}
 
 		if err == nil && !tc.shouldPass {
-			t.Fatalf("Expecting an error %v", tc.expectedError)
+			t.Fatalf("Expecting an error %v. Input args: %v", tc.expectedError, tc.input)
 		}
 
 		if err != nil && tc.shouldPass {
-			t.Fatalf("Unexpected error %v", err)
+			t.Fatalf("Unexpected error %v. Input args: %v", err, tc.input)
 		}
 	}
 }
