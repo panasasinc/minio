@@ -341,6 +341,10 @@ func StartGateway(ctx *cli.Context, gw Gateway) {
 		initFederatorBackend(buckets, newObject)
 	}
 
+	if gatewayName == PANFSBackendGateway {
+		globalLocalNodeName = "panasas-minio"
+	}
+
 	// Verify if object layer supports
 	// - encryption
 	// - compression
