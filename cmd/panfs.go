@@ -1104,7 +1104,14 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	// Delete the temporary object in the case of a
 	// failure. If PutObject succeeds, then there would be
 	// nothing to delete.
-	defer fsRemoveFile(ctx, fsTmpObjPath)
+
+	// POC - avoid redundant unlink
+	renameDone := false
+	defer func() {
+		if !renameDone {
+			fsRemoveFile(ctx, fsTmpObjPath)
+		}
+	}()
 
 	if err != nil {
 		return ObjectInfo{}, toObjectErr(err, bucket, object)
@@ -1122,6 +1129,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	if err = fsRenameFile2(ctx, fsTmpObjPath, fsNSObjPath); err != nil {
 		return ObjectInfo{}, toObjectErr(err, bucket, object)
 	}
+	renameDone = true
 
 	/*
 		POC do not store metadata at all
