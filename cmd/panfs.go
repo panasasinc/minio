@@ -1009,7 +1009,9 @@ func (fs *PANFSObjects) PutObject(ctx context.Context, bucket string, object str
 		return ObjectInfo{}, err
 	}
 
+	/* POC - ignore namespace update
 	defer NSUpdated(bucket, object)
+	*/
 
 	// Lock the object.
 	lk := fs.NewNSLock(bucket, object)
