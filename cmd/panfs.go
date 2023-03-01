@@ -429,6 +429,7 @@ func (fs *PANFSObjects) getBucketDir(ctx context.Context, bucket string) (string
 }
 
 func (fs *PANFSObjects) statBucketDir(ctx context.Context, bucket string) (os.FileInfo, error) {
+	/* POC - skip directory stat
 	bucketDir, err := fs.getBucketDir(ctx, bucket)
 	if err != nil {
 		return nil, err
@@ -438,6 +439,8 @@ func (fs *PANFSObjects) statBucketDir(ctx context.Context, bucket string) (os.Fi
 		return nil, err
 	}
 	return st, nil
+	*/
+	return nil, nil
 }
 
 // MakeBucketWithLocation - create a new bucket, returns if it already exists.
@@ -513,12 +516,7 @@ func (fs *PANFSObjects) DeleteBucketPolicy(ctx context.Context, bucket string) e
 
 // GetBucketInfo - fetch bucket metadata info.
 func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, opts BucketOptions) (bi BucketInfo, e error) {
-	st, err := fs.statBucketDir(ctx, bucket)
-	if err != nil {
-		return bi, toObjectErr(err, bucket)
-	}
-
-	createdTime := st.ModTime()
+	createdTime := time.Unix(1677604522, 0)
 	meta, err := globalBucketMetadataSys.Get(bucket)
 	if err == nil {
 		createdTime = meta.Created
