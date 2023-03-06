@@ -1095,6 +1095,8 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 		}
 	*/
 
+	/* POC 2 - upload object in place (just emulate working with different directories)
+
 	// Uploaded object will first be written to the temporary location which will eventually
 	// be renamed to the actual location. It is first written to the temporary location
 	// so that cleaning it up will be easy if the server goes down.
@@ -1132,6 +1134,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 		return ObjectInfo{}, toObjectErr(err, bucket, object)
 	}
 	renameDone = true
+	*/
 
 	/*
 		POC do not store metadata at all
@@ -1142,6 +1145,20 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 			}
 		}
 	*/
+
+	fsNSObjPath := pathJoin(fs.fsPath, bucket, object)
+	bytesWritten, err := fsCreateFile(ctx, fsNSObjPath, data, data.Size())
+	if err != nil {
+		return ObjectInfo{}, toObjectErr(err, bucket, object)
+	}
+	fsMeta.Meta["etag"] = r.MD5CurrentHexString()
+
+	// Should return IncompleteBody{} error when reader has fewer
+	// bytes than specified in request header.
+	if bytesWritten < data.Size() {
+		fsRemoveFile(ctx, fsNSObjPath)
+		return ObjectInfo{}, IncompleteBody{Bucket: bucket, Object: object}
+	}
 
 	// Stat the file to fetch timestamp, size.
 	fi, err := fsStatFile(ctx, pathJoin(fs.fsPath, bucket, object))
