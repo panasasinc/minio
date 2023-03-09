@@ -12,15 +12,20 @@ import (
 // files and other directories or contains only .s3 directory which is hidden from the user
 func removePanFSBucketDir(ctx context.Context, dirPath string) (err error) {
 	if dirPath == "" {
+		logger.LogIf(ctx, errInvalidArgument)
 		return errInvalidArgument
 	}
 
 	if err = checkPathLength(dirPath); err != nil {
+		logger.LogIf(ctx, errInvalidArgument)
 		return err
 	}
 
 	f, err := os.Open(dirPath)
 	if err != nil {
+		if osIsNotExist(err) {
+			return errVolumeNotFound
+		}
 		return err
 	}
 	entries, err := f.Readdirnames(-1)

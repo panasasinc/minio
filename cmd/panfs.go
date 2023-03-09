@@ -706,6 +706,7 @@ func (fs *PANFSObjects) ListBuckets(ctx context.Context, opts BucketOptions) ([]
 
 // DeleteBucket - delete a bucket and all the metadata associated
 // with the bucket including pending multipart, object metadata.
+// TODO: there is no need to delete user data when deleting bucket.
 func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts DeleteBucketOptions) error {
 	defer NSUpdated(bucket, slashSeparator)
 
