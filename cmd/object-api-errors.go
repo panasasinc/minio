@@ -622,7 +622,6 @@ func (e InvalidPart) Error() string {
 }
 
 // PanFSS3InvalidName bucket does not exist
-// TODO: move this error the panfs backend location?
 type PanFSS3InvalidName GenericError
 
 func (e PanFSS3InvalidName) Error() string {
