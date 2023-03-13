@@ -134,6 +134,22 @@ func Rename(src, dst string) error {
 	return os.Rename(src, dst)
 }
 
+// PanRename captures time taken to call Link/Unlink
+func PanRename(src, dst string) error {
+	defer updateOSMetrics(osMetricRename, src, dst)()
+	if _, err := os.Stat(dst); !os.IsNotExist(err) {
+		err = os.Remove(dst)
+		if err != nil {
+			return err
+		}
+	}
+	err := os.Link(src, dst)
+	if err != nil {
+		return err
+	}
+	return os.Remove(src)
+}
+
 // OpenFile captures time taken to call os.OpenFile
 func OpenFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 	switch flag & writeMode {
