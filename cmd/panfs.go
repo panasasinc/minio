@@ -1549,10 +1549,7 @@ func (fs *PANFSObjects) filterOutPanFSS3Dir(entries []string) (filtered []string
 func (fs *PANFSObjects) isObjectDir(bucket, prefix string) bool {
 	if fs.configAgent != nil {
 		entries, err := fs.configAgent.GetObjectsList(pathJoin(panfsObjectsPrefix, bucket, prefix, slashSeparator))
-		if err != nil {
-			return false
-		}
-		return len(entries) == 0
+		return err != nil && len(entries) == 0
 	}
 	entries, err := readDirN(pathJoin(fs.fsPath, bucket, prefix), 1)
 	if err != nil {
