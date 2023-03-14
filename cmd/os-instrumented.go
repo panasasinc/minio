@@ -137,11 +137,8 @@ func Rename(src, dst string) error {
 // PanRename captures time taken to call Link/Unlink
 func PanRename(src, dst string) error {
 	defer updateOSMetrics(osMetricRename, src, dst)()
-	if _, err := os.Stat(dst); !os.IsNotExist(err) {
-		err = os.Remove(dst)
-		if err != nil {
-			return err
-		}
+	if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
+		return err
 	}
 	err := os.Link(src, dst)
 	if err != nil {
