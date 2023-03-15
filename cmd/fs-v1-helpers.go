@@ -376,7 +376,7 @@ func panfsRenameFile(ctx context.Context, sourcePath, destPath string) error {
 		return err
 	}
 
-	if err := panRenameAll(sourcePath, destPath); err != nil {
+	if err := panRenameFileAll(sourcePath, destPath); err != nil {
 		logger.LogIf(ctx, err)
 		return err
 	}
