@@ -141,7 +141,7 @@ func PanRenameFile(src, dst string) error {
 		if !os.IsExist(err) {
 			return err
 		}
-		//dst file exists
+		// dst file exists
 		if err = os.Remove(dst); err != nil {
 			return err
 		}
