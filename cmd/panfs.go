@@ -103,7 +103,7 @@ type PANFSObjects struct {
 
 	tmpDirsCount            uint64
 	currentTmpFolder        uint64
-	multipartTmpFolder      map[string]string //uploadID => path
+	multipartTmpFolder      map[string]string // uploadID => path
 	multipartTmpFolderMutex *sync.RWMutex
 
 	configAgent *panconfig.Client
