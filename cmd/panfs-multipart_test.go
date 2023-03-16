@@ -24,6 +24,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -191,17 +193,20 @@ func TestPANFSCompleteMultipartUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal("Unexpected error ", err)
 	}
+	checkMultipartTempFolder(t, obj, res, 1, 0)
 
 	md5Hex := getMD5Hash(data)
 
 	if _, err := obj.PutObjectPart(GlobalContext, bucketName, objectName, res.UploadID, 1, mustGetPutObjReader(t, bytes.NewReader(data), 5, md5Hex, ""), ObjectOptions{}); err != nil {
 		t.Fatal("Unexpected error ", err)
 	}
+	checkMultipartTempFolder(t, obj, res, 1, 0)
 
 	parts := []CompletePart{{PartNumber: 1, ETag: md5Hex}}
 	if _, err := obj.CompleteMultipartUpload(GlobalContext, bucketName, objectName, res.UploadID, parts, ObjectOptions{}); err != nil {
 		t.Fatal("Unexpected error ", err)
 	}
+	checkMultipartTempFolder(t, obj, nil, 0, 0)
 }
 
 // TestPANFSAbortMultipartUpload - test CompleteMultipartUpload
@@ -222,6 +227,7 @@ func TestPANFSAbortMultipartUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal("Unexpected error ", err)
 	}
+	checkMultipartTempFolder(t, obj, res, 1, 0)
 
 	md5Hex := getMD5Hash(data)
 
@@ -232,6 +238,7 @@ func TestPANFSAbortMultipartUpload(t *testing.T) {
 	if err := obj.AbortMultipartUpload(GlobalContext, bucketName, objectName, res.UploadID, opts); err != nil {
 		t.Fatal("Unexpected error ", err)
 	}
+	checkMultipartTempFolder(t, obj, nil, 0, 0)
 }
 
 // TestPANFSListMultipartUploadsFaultyDisk - test ListMultipartUploads with faulty disks
@@ -298,14 +305,14 @@ func TestPANFSPutObjectPart(t *testing.T) {
 	// Put object part with not existing bucket
 	_, err = obj.PutObjectPart(GlobalContext, nonExistentBucket, objectName, uploadID.UploadID, partNumber, reader, ObjectOptions{})
 	if !errors.Is(err, BucketNotFound{Bucket: nonExistentBucket}) {
-		t.Fatalf("Expected error \"%v\" but found \"%v\"\"", BucketNotFound{Bucket: nonExistentBucket}, err)
+		t.Fatalf("Expected error \"%v\" but found \"%v\"", BucketNotFound{Bucket: nonExistentBucket}, err)
 	}
 
 	// Put object part with an uninitialized upload id
 	_, err = obj.PutObjectPart(GlobalContext, bucketName, objectName, nonExistendUploadID, partNumber, reader, ObjectOptions{})
 	expectedErr := InvalidUploadID{Bucket: bucketName, Object: objectName, UploadID: nonExistendUploadID}
 	if !errors.Is(err, expectedErr) {
-		t.Fatalf("Expected error \"%v\" but found \"%v\"\"", expectedErr, err)
+		t.Fatalf("Expected error \"%v\" but found \"%v\"", expectedErr, err)
 	}
 
 	// Put object part with valid arguments
@@ -319,5 +326,34 @@ func TestPANFSPutObjectPart(t *testing.T) {
 	expectedSize := int64(len(contentBytes))
 	if pi.Size != expectedSize {
 		t.Fatalf("Expectied size %v but found %v", expectedSize, pi.Size)
+	}
+}
+
+func TestPANFSSeveralNewMultipartUpload(t *testing.T) {
+	bucketName := getRandomBucketName()
+	objectName := getRandomObjectName()
+	obj, disk := initPanFSWithBucket(bucketName, t)
+	defer os.RemoveAll(disk)
+
+	res1, _ := obj.NewMultipartUpload(GlobalContext, bucketName, objectName, ObjectOptions{})
+	res2, _ := obj.NewMultipartUpload(GlobalContext, bucketName, objectName, ObjectOptions{})
+
+	checkMultipartTempFolder(t, obj, res1, 2, 1)
+	checkMultipartTempFolder(t, obj, res2, 2, 0)
+}
+
+func checkMultipartTempFolder(t *testing.T, obj ObjectLayer, res *NewMultipartUploadResult, mapLen int, tmpFolderNumDelta uint64) {
+	objPanFS := obj.(*PANFSObjects)
+	if len(objPanFS.multipartTmpFolder) != mapLen {
+		t.Fatalf("Expectied size %v but found %v", mapLen, len(objPanFS.multipartTmpFolder))
+	}
+	if mapLen == 0 {
+		return
+	}
+	testPath := pathJoin(panfsS3TmpDir, strconv.FormatUint(objPanFS.currentTmpFolder-tmpFolderNumDelta, 10))
+	if path, ok := objPanFS.multipartTmpFolder[res.UploadID]; !ok {
+		t.Fatalf("Expectied value in multipartTmpFolder for key %s", res.UploadID)
+	} else if !strings.Contains(path, testPath) {
+		t.Fatalf("Path to multipart temp folder doesn't contain %s: %s", testPath, path)
 	}
 }

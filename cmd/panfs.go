@@ -30,8 +30,10 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -98,6 +100,11 @@ type PANFSObjects struct {
 
 	// To manage the appendRoutine go-routines
 	nsMutex *nsLockMap
+
+	tmpDirsCount            uint64
+	currentTmpFolder        uint64
+	multipartTmpFolder      map[string]string //uploadID => path
+	multipartTmpFolderMutex *sync.RWMutex
 
 	configAgent *panconfig.Client
 }
@@ -171,6 +178,11 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 		panfsConfigAgentNamespace,
 	)
 
+	tmpDirsCount, err := strconv.ParseUint(env.Get(config.EnvPanTmpDirsCount, "10"), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("can't parse count of tmp directories. Error: %w", err)
+	}
+
 	// Initialize fs objects.
 	fs := &PANFSObjects{
 		fsPath:       fsPath,
@@ -179,11 +191,14 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 		rwPool: &fsIOPool{
 			readersMap: make(map[string]*lock.RLockedFile),
 		},
-		nsMutex:       newNSLock(false),
-		listPool:      NewTreeWalkPool(globalLookupTimeout),
-		appendFileMap: make(map[string]*panfsAppendFile),
-		diskMount:     mountinfo.IsLikelyMountPoint(fsPath),
-		configAgent:   panasasConfigClient,
+		nsMutex:                 newNSLock(false),
+		listPool:                NewTreeWalkPool(globalLookupTimeout),
+		appendFileMap:           make(map[string]*panfsAppendFile),
+		diskMount:               mountinfo.IsLikelyMountPoint(fsPath),
+		configAgent:             panasasConfigClient,
+		tmpDirsCount:            tmpDirsCount,
+		multipartTmpFolder:      make(map[string]string),
+		multipartTmpFolderMutex: &sync.RWMutex{},
 	}
 
 	// Once the filesystem has initialized hold the read lock for
@@ -1233,6 +1248,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 		return ObjectInfo{}, errInvalidArgument
 	}
 
+	tempDir := fs.getTempDir(bucketDir)
 	var wlk *lock.LockedFile
 	if bucket != minioMetaBucket {
 		bucketMetaDir := pathJoin(bucketDir, panfsS3MetadataDir)
@@ -1256,8 +1272,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 			// We should preserve the `fs.json` of any
 			// existing object
 			if retErr != nil && freshFile {
-				tmpDir := pathJoin(bucketDir, panfsS3TmpDir, fs.fsUUID)
-				fsRemoveMeta(ctx, bucketMetaDir, fsMetaPath, tmpDir) // TODO: check this delete
+				fsRemoveMeta(ctx, bucketMetaDir, fsMetaPath, tempDir) // TODO: check this delete
 			}
 		}()
 	}
@@ -1276,7 +1291,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 			return ObjectInfo{}, retErr
 		}
 	} else {
-		fsTmpObjPath := pathJoin(bucketDir, panfsS3TmpDir, fs.fsUUID, tempObj)
+		fsTmpObjPath := pathJoin(tempDir, tempObj)
 		bytesWritten, err := fsCreateFile(ctx, fsTmpObjPath, data, data.Size())
 
 		// Delete the temporary object in the case of a
@@ -1826,4 +1841,8 @@ func (fs *PANFSObjects) isConfigAgentObject(bucket, object string) bool {
 	}
 
 	return true
+}
+
+func (fs *PANFSObjects) getTempDir(bucketDir string) string {
+	return pathJoin(bucketDir, panfsS3TmpDir, strconv.FormatUint(atomic.AddUint64(&fs.currentTmpFolder, 1)%fs.tmpDirsCount, 10), fs.fsUUID)
 }

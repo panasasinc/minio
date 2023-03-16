@@ -74,6 +74,14 @@ func (fs *PANFSObjects) decodePartFile(name string) (partNumber int, etag string
 
 // Appends parts to an appendFile sequentially.
 func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, uploadID string) {
+	fs.multipartTmpFolderMutex.RLock()
+	tmpDir, ok := fs.multipartTmpFolder[uploadID]
+	if !ok {
+		logger.LogIf(ctx, errUploadIDNotFound, logger.Application)
+		return
+	}
+	fs.multipartTmpFolderMutex.RUnlock()
+
 	fs.appendFileMapMu.Lock()
 	logger.GetReqInfo(ctx).AppendTags("uploadID", uploadID)
 	bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
@@ -85,7 +93,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	file := fs.appendFileMap[uploadID]
 	if file == nil {
 		file = &panfsAppendFile{
-			filePath: pathJoin(bucketPath, panfsS3TmpDir, fs.fsUUID, bgAppendsDirName, fmt.Sprintf("%s.%s", uploadID, mustGetUUID())),
+			filePath: pathJoin(tmpDir, bgAppendsDirName, fmt.Sprintf("%s.%s", uploadID, mustGetUUID())),
 		}
 		fs.appendFileMap[uploadID] = file
 	}
@@ -253,9 +261,9 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 		logger.LogIf(ctx, err)
 		return nil, err
 	}
-
 	// Creates dir for background append procedure
-	err = mkdirAll(pathJoin(bucketPath, panfsS3TmpDir, fs.fsUUID, bgAppendsDirName), 0o755)
+	tmpDir := fs.getTempDir(bucketPath)
+	err = mkdirAll(pathJoin(tmpDir, bgAppendsDirName), 0o755)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err
@@ -275,6 +283,10 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 		logger.LogIf(ctx, err)
 		return nil, err
 	}
+
+	fs.multipartTmpFolderMutex.Lock()
+	fs.multipartTmpFolder[uploadID] = tmpDir
+	fs.multipartTmpFolderMutex.Unlock()
 	return &NewMultipartUploadResult{UploadID: uploadID}, nil
 }
 
@@ -332,6 +344,13 @@ func (fs *PANFSObjects) PutObjectPart(ctx context.Context, bucket, object, uploa
 		return pi, toObjectErr(err)
 	}
 
+	fs.multipartTmpFolderMutex.RLock()
+	tmpDir, ok := fs.multipartTmpFolder[uploadID]
+	if !ok {
+		return pi, toObjectErr(errUploadIDNotFound, bucket, object, uploadID)
+	}
+	fs.multipartTmpFolderMutex.RUnlock()
+
 	if _, err := fsStatVolume(ctx, bucketPath); err != nil {
 		return pi, toObjectErr(err, bucket)
 	}
@@ -353,7 +372,7 @@ func (fs *PANFSObjects) PutObjectPart(ctx context.Context, bucket, object, uploa
 		return pi, toObjectErr(err, bucket, object)
 	}
 
-	tmpPartPath := pathJoin(bucketPath, panfsS3TmpDir, fs.fsUUID, uploadID+"."+mustGetUUID()+"."+strconv.Itoa(partID))
+	tmpPartPath := pathJoin(tmpDir, uploadID+"."+mustGetUUID()+"."+strconv.Itoa(partID))
 	bytesWritten, err := fsCreateFile(ctx, tmpPartPath, data, data.Size())
 
 	// Delete temporary part in case of failure. If
@@ -603,6 +622,19 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		return oi, toObjectErr(err)
 	}
 
+	fs.multipartTmpFolderMutex.RLock()
+	tmpDir, ok := fs.multipartTmpFolder[uploadID]
+	if !ok {
+		return oi, toObjectErr(errUploadIDNotFound, bucket, object, uploadID)
+	}
+	fs.multipartTmpFolderMutex.RUnlock()
+
+	defer func() {
+		fs.multipartTmpFolderMutex.Lock()
+		delete(fs.multipartTmpFolder, uploadID)
+		fs.multipartTmpFolderMutex.Unlock()
+	}()
+
 	if _, err := fsStatVolume(ctx, bucketPath); err != nil {
 		return oi, toObjectErr(err, bucket)
 	}
@@ -698,7 +730,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	}
 
 	appendFallback := true // In case background-append did not append the required parts.
-	appendFilePath := pathJoin(bucketPath, panfsS3TmpDir, fs.fsUUID, bgAppendsDirName, fmt.Sprintf("%s.%s", uploadID, mustGetUUID()))
+	appendFilePath := pathJoin(tmpDir, bgAppendsDirName, fmt.Sprintf("%s.%s", uploadID, mustGetUUID()))
 
 	// Most of the times appendFile would already be fully appended by now. We call fs.backgroundAppend()
 	// to take care of the following corner case:
@@ -786,7 +818,6 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		// We should preserve the `fs.json` of any
 		// existing object
 		if e != nil && freshFile {
-			tmpDir := pathJoin(bucketPath, panfsS3TmpDir, fs.fsUUID)
 			fsRemoveMeta(ctx, bucketMetaDir, fsMetaPath, tmpDir)
 		}
 	}()
@@ -827,7 +858,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 
 	// Purge multipart folders
 	{
-		fsTmpObjPath := pathJoin(bucketPath, panfsS3TmpDir, fs.fsUUID, mustGetUUID())
+		fsTmpObjPath := pathJoin(tmpDir, mustGetUUID())
 		defer fsRemoveAll(ctx, fsTmpObjPath) // remove multipart temporary files in background.
 
 		Rename(uploadIDDir, fsTmpObjPath)
@@ -861,6 +892,19 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 		return err
 	}
 
+	fs.multipartTmpFolderMutex.RLock()
+	tmpDir, ok := fs.multipartTmpFolder[uploadID]
+	if !ok {
+		return toObjectErr(errUploadIDNotFound, bucket, object, uploadID)
+	}
+	fs.multipartTmpFolderMutex.RUnlock()
+
+	defer func() {
+		fs.multipartTmpFolderMutex.Lock()
+		delete(fs.multipartTmpFolder, uploadID)
+		fs.multipartTmpFolderMutex.Unlock()
+	}()
+
 	bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
 	if err != nil {
 		logger.LogIf(ctx, err, logger.Application)
@@ -892,7 +936,7 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 
 	// Purge multipart folders
 	{
-		fsTmpObjPath := pathJoin(bucketPath, panfsS3TmpDir, fs.fsUUID, mustGetUUID())
+		fsTmpObjPath := pathJoin(tmpDir, mustGetUUID())
 		defer fsRemoveAll(ctx, fsTmpObjPath) // remove multipart temporary files in background.
 
 		Rename(uploadIDDir, fsTmpObjPath)
