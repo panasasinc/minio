@@ -101,10 +101,8 @@ type PANFSObjects struct {
 	// To manage the appendRoutine go-routines
 	nsMutex *nsLockMap
 
-	tmpDirsCount            uint64
-	currentTmpFolder        uint64
-	multipartTmpFolder      map[string]string // uploadID => path
-	multipartTmpFolderMutex *sync.RWMutex
+	tmpDirsCount     uint64
+	currentTmpFolder uint64
 
 	configAgent *panconfig.Client
 }
@@ -191,14 +189,12 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 		rwPool: &fsIOPool{
 			readersMap: make(map[string]*lock.RLockedFile),
 		},
-		nsMutex:                 newNSLock(false),
-		listPool:                NewTreeWalkPool(globalLookupTimeout),
-		appendFileMap:           make(map[string]*panfsAppendFile),
-		diskMount:               mountinfo.IsLikelyMountPoint(fsPath),
-		configAgent:             panasasConfigClient,
-		tmpDirsCount:            tmpDirsCount,
-		multipartTmpFolder:      make(map[string]string),
-		multipartTmpFolderMutex: &sync.RWMutex{},
+		nsMutex:       newNSLock(false),
+		listPool:      NewTreeWalkPool(globalLookupTimeout),
+		appendFileMap: make(map[string]*panfsAppendFile),
+		diskMount:     mountinfo.IsLikelyMountPoint(fsPath),
+		configAgent:   panasasConfigClient,
+		tmpDirsCount:  tmpDirsCount,
 	}
 
 	// Once the filesystem has initialized hold the read lock for
@@ -1844,5 +1840,5 @@ func (fs *PANFSObjects) isConfigAgentObject(bucket, object string) bool {
 }
 
 func (fs *PANFSObjects) getTempDir(bucketDir string) string {
-	return pathJoin(bucketDir, panfsS3TmpDir, strconv.FormatUint(atomic.AddUint64(&fs.currentTmpFolder, 1)%fs.tmpDirsCount, 10), fs.fsUUID)
+	return pathJoin(bucketDir, panfsS3TmpDir, fs.fsUUID, strconv.FormatUint(atomic.AddUint64(&fs.currentTmpFolder, 1)%fs.tmpDirsCount, 10))
 }
