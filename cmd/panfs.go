@@ -158,7 +158,7 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 
 	// Assign a new UUID for FS minio mode. Each server instance
 	// gets its own UUID for temporary file transaction.
-	fsUUID := mustGetUUID()
+	fsUUID := env.Get(config.EnvPanUUID, mustGetUUID())
 
 	// Initialize meta volume, if volume already exists ignores it.
 	if err = initMetaVolumePANFS(fsPath, fsUUID); err != nil {

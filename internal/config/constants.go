@@ -84,4 +84,5 @@ const (
 	EnvPanFSBucketPath       = "MINIO_PANFS_BUCKET_PATH"
 	EnvPanasasConfigAgentURL = "MINIO_PANFS_CONFIG_AGENT_URL"
 	EnvPanTmpDirsCount       = "MINIO_PANFS_TMP_DIRS_COUNT"
+	EnvPanUUID               = "MINIO_PANFS_DATASERIAL"
 )
