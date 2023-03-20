@@ -400,7 +400,12 @@ func (fs *PANFSObjects) scanBucket(ctx context.Context, bucket string, cache dat
 				done(len(fsMetaBytes))
 			}
 		}()
-		fsMetaBytes, err := xioutil.ReadFile(pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket, object, fs.metaJSONFile))
+		bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
+		if err != nil {
+			return sizeSummary{}, errSkipFile
+		}
+
+		fsMetaBytes, err = xioutil.ReadFile(fs.getObjectMetadataPath(bucketPath, object))
 		if err != nil && !osIsNotExist(err) {
 			if intDataUpdateTracker.debug {
 				logger.Info(color.Green("scanBucket:")+" object return unexpected error: %v/%v: %w", item.bucket, item.objectPath(), err)
@@ -471,6 +476,11 @@ func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string) (
 	return b, nil
 }
 
+// getObjectMetadataPath returns path to the object metadata based on bucket path and object name
+func (fs *PANFSObjects) getObjectMetadataPath(bucketDir, object string) string {
+	return pathJoin(bucketDir, panfsS3MetadataDir, object)
+}
+
 // getBucketPanFSPath returns path to the bucket.
 func (fs *PANFSObjects) getBucketPanFSPath(ctx context.Context, bucket string) (path string, err error) {
 	if bucket != minioMetaBucket {
@@ -517,6 +527,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 
 	defer NSUpdated(bucket, slashSeparator)
 
+	// TODO: if bucket is not minio.sys do not create .s3
 	bucketMetaDir := pathJoin(opts.PanFSBucketPath, bucket, panfsMetaDir)
 	for _, dir := range []string{
 		pathJoin(opts.PanFSBucketPath, bucket),
@@ -776,7 +787,7 @@ func (fs *PANFSObjects) CopyObject(ctx context.Context, srcBucket, srcObject, ds
 		if err != nil {
 			return oi, err
 		}
-		fsMetaPath := pathJoin(bucketDir, panfsS3MetadataDir, srcObject, fs.metaJSONFile)
+		fsMetaPath := fs.getObjectMetadataPath(bucketDir, srcObject)
 		wlk, err := fs.rwPool.Write(fsMetaPath)
 		if err != nil {
 			wlk, err = fs.rwPool.Create(fsMetaPath)
@@ -892,7 +903,7 @@ func (fs *PANFSObjects) GetObjectNInfo(ctx context.Context, bucket, object strin
 	// Take a rwPool lock for NFS gateway type deployment
 	rwPoolUnlocker := func() {}
 	if bucket != minioMetaBucket && lockType != noLock {
-		fsMetaPath := pathJoin(bucketDir, panfsS3MetadataDir, object, fs.metaJSONFile)
+		fsMetaPath := fs.getObjectMetadataPath(bucketDir, object)
 		_, err = fs.rwPool.Open(fsMetaPath)
 		if err != nil && err != errFileNotFound {
 			logger.LogIf(ctx, err)
@@ -1000,7 +1011,7 @@ func (fs *PANFSObjects) getObjectInfoNoFSLock(ctx context.Context, bucket, objec
 		return fsMeta.ToObjectInfo(bucket, object, fi), nil
 	}
 
-	fsMetaPath := pathJoin(bucketDir, panfsS3MetadataDir, object, fs.metaJSONFile)
+	fsMetaPath := fs.getObjectMetadataPath(bucketDir, object)
 	// Read `fs.json` to perhaps contend with
 	// parallel Put() operations.
 
@@ -1063,7 +1074,7 @@ func (fs *PANFSObjects) getObjectInfo(ctx context.Context, bucket, object string
 		}
 		return fsMeta.ToObjectInfo(bucket, object, fi), nil
 	}
-	fsMetaPath := pathJoin(bucketDir, panfsS3MetadataDir, object, fs.metaJSONFile)
+	fsMetaPath := fs.getObjectMetadataPath(bucketDir, object)
 	// Read `fs.json` to perhaps contend with
 	// parallel Put() operations.
 
@@ -1156,7 +1167,7 @@ func (fs *PANFSObjects) GetObjectInfo(ctx context.Context, bucket, object string
 		if err != nil {
 			return oi, err
 		}
-		fsMetaPath := pathJoin(bucketDir, panfsS3MetadataDir, object, fs.metaJSONFile)
+		fsMetaPath := fs.getObjectMetadataPath(bucketDir, object)
 		err = fs.createFsJSON(object, fsMetaPath)
 		lk.Unlock(lkctx.Cancel)
 		if err != nil {
@@ -1251,12 +1262,11 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	tempDir := fs.getTempDir(bucketDir)
 	var wlk *lock.LockedFile
 	if bucket != minioMetaBucket {
-		bucketMetaDir := pathJoin(bucketDir, panfsS3MetadataDir)
-		fsMetaPath := pathJoin(bucketMetaDir, object, fs.metaJSONFile)
-		wlk, err = fs.rwPool.Write(fsMetaPath)
+		objectMetaPath := fs.getObjectMetadataPath(bucketDir, object)
+		wlk, err = fs.rwPool.Write(objectMetaPath)
 		var freshFile bool
 		if err != nil {
-			wlk, err = fs.rwPool.Create(fsMetaPath)
+			wlk, err = fs.rwPool.Create(objectMetaPath)
 			if err != nil {
 				logger.LogIf(ctx, err)
 				return ObjectInfo{}, toObjectErr(err, bucket, object)
@@ -1268,11 +1278,10 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 		defer func() {
 			// Remove meta file when PutObject encounters
 			// any error and it is a fresh file.
-			//
-			// We should preserve the `fs.json` of any
+			// We should preserve the meta file of any
 			// existing object
 			if retErr != nil && freshFile {
-				fsRemoveMeta(ctx, bucketMetaDir, fsMetaPath, tempDir) // TODO: check this delete
+				fsRemoveFile(ctx, objectMetaPath)
 			}
 		}()
 	}
@@ -1408,7 +1417,7 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 	if err != nil {
 		return objInfo, toObjectErr(err, bucket)
 	}
-	fsMetaPath := pathJoin(bucketDir, panfsS3MetadataDir, object, fs.metaJSONFile)
+	fsMetaPath := fs.getObjectMetadataPath(bucketDir, object)
 	if bucket != minioMetaBucket {
 		rwlk, err = fs.rwPool.Write(fsMetaPath)
 		if err != nil && err != errFileNotFound {
@@ -1438,7 +1447,7 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 
 	if bucket != minioMetaBucket {
 		// Delete the metadata object.
-		err = fsDeleteFile(ctx, pathJoin(bucketDir, panfsS3MetadataDir), fsMetaPath)
+		err = fsRemoveFile(ctx, fsMetaPath)
 		if err != nil && err != errFileNotFound {
 			return objInfo, toObjectErr(err, bucket, object)
 		}
@@ -1634,7 +1643,7 @@ func (fs *PANFSObjects) PutObjectTags(ctx context.Context, bucket, object string
 	if err != nil {
 		return ObjectInfo{}, err
 	}
-	fsMetaPath := pathJoin(bucketDir, panfsS3MetadataDir, object, fs.metaJSONFile)
+	fsMetaPath := fs.getObjectMetadataPath(bucketDir, object)
 	fsMeta := panfsMeta{}
 	wlk, err := fs.rwPool.Write(fsMetaPath)
 	if err != nil {
@@ -1644,10 +1653,10 @@ func (fs *PANFSObjects) PutObjectTags(ctx context.Context, bucket, object string
 			return ObjectInfo{}, toObjectErr(err, bucket, object)
 		}
 	}
-	// This close will allow for locks to be synchronized on `fs.json`.
+	// This close will allow for locks to be synchronized on meta file.
 	defer wlk.Close()
 
-	// Read objects' metadata in `fs.json`.
+	// Read objects' metadata in meta file.
 	if _, err = fsMeta.ReadFrom(ctx, wlk); err != nil {
 		// For any error to read fsMeta, set default ETag and proceed.
 		fsMeta = fs.defaultFsJSON(object)
