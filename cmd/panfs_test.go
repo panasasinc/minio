@@ -190,7 +190,6 @@ func TestPANFSDeleteObject(t *testing.T) {
 	obj, disk := initPanFSWithBucket(bucketName, t)
 	defer os.RemoveAll(disk)
 
-	obj.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{})
 	obj.PutObject(GlobalContext, bucketName, objectName, mustGetPutObjReader(t, bytes.NewReader([]byte("abcd")), int64(len("abcd")), "", ""), ObjectOptions{})
 
 	// Test with invalid bucket name
@@ -226,38 +225,27 @@ func TestPANFSDeleteObject(t *testing.T) {
 // TestPANFSDeleteBucket - tests for fs DeleteBucket
 func TestPANFSDeleteBucket(t *testing.T) {
 	// Prepare for testing
-	disk := filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
+	bucketName := getRandomBucketName()
+	obj, disk := initPanFSWithBucket(bucketName, t)
 	defer os.RemoveAll(disk)
-
-	obj, err := initPanFSObjects(disk)
-	if err != nil {
-		t.Fatal(err)
-	}
 	fs := obj.(*PANFSObjects)
-	bucketName := "bucket"
-
-	err = obj.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: disk})
-	if err != nil {
-		t.Fatal("Unexpected error: ", err)
-	}
 
 	// Test with an invalid bucket name
-	if err = fs.DeleteBucket(GlobalContext, "fo", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
+	if err := fs.DeleteBucket(GlobalContext, "fo", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
 		t.Fatal("Unexpected error: ", err)
 	}
 
 	// Test with an not existing bucket
-	if err = fs.DeleteBucket(GlobalContext, "foobucket", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
+	if err := fs.DeleteBucket(GlobalContext, "foobucket", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
 		t.Fatal("Unexpected error: ", err)
 	}
 	// Test with a valid case
-	// Use the force flag here as there is .s3 hidden directory created inside the bucket dir
-	if err = fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{Force: true}); err != nil {
+	if err := fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{}); err != nil {
 		t.Fatal("Unexpected error: ", err)
 	}
 	// Make sure that panfs bucket dir deleted as well
 	panfsBucketDir := pathJoin(disk, bucketName)
-	_, err = fsStatDir(GlobalContext, panfsBucketDir)
+	_, err := fsStatDir(GlobalContext, panfsBucketDir)
 	if !isSameType(err, errFileNotFound) {
 		t.Fatalf("Expected error type errFileNotFound, got %#v", err)
 	}

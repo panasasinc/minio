@@ -490,7 +490,7 @@ func (fs *PANFSObjects) getBucketPanFSPath(ctx context.Context, bucket string) (
 		if err != nil {
 			return "", err
 		}
-		path = pathJoin(meta.PanFSPath, bucket)
+		path = meta.PanFSPath
 	} else {
 		path = pathJoin(fs.fsPath, bucket)
 	}
@@ -525,24 +525,42 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		return BucketNameInvalid{Bucket: bucket}
 	}
 
-	defer NSUpdated(bucket, slashSeparator)
+	// Do not create bucket if it already exists
+	_, err := fs.getBucketPanFSPath(ctx, bucket)
+	if err != nil && !isErrBucketNotFound(err) {
+		return toObjectErr(err, bucket)
+	} else if err == nil {
+		return toObjectErr(errVolumeExists, bucket)
+	}
 
-	// TODO: if bucket is not minio.sys do not create .s3
-	bucketMetaDir := pathJoin(opts.PanFSBucketPath, bucket, panfsMetaDir)
-	for _, dir := range []string{
-		pathJoin(opts.PanFSBucketPath, bucket),
+	defer NSUpdated(bucket, slashSeparator)
+	var dirs []string
+	var bucketPanFSPath string
+	var bucketMetaDir string
+
+	if opts.PanFSBucketPath != globalPanFSDefaultBucketPath {
+		// Mapping to an existing folder
+		bucketPanFSPath = opts.PanFSBucketPath
+		bucketMetaDir = pathJoin(opts.PanFSBucketPath, panfsMetaDir)
+	} else {
+		// Panfs path is the default path - create bucket directory inside
+		bucketPanFSPath = pathJoin(opts.PanFSBucketPath, bucket)
+		bucketMetaDir = pathJoin(opts.PanFSBucketPath, bucket, panfsMetaDir)
+		dirs = append(dirs, pathJoin(opts.PanFSBucketPath, bucket))
+	}
+	dirs = append(dirs,
 		bucketMetaDir,
 		pathJoin(bucketMetaDir, objMetadataDir),
 		pathJoin(bucketMetaDir, tmpDir),
-		pathJoin(bucketMetaDir, mpartMetaPrefix),
-	} {
+		pathJoin(bucketMetaDir, mpartMetaPrefix))
+	for _, dir := range dirs {
 		if err := fsMkdir(ctx, dir); err != nil {
-			return toObjectErr(err, bucket)
+			return toObjectErr(err)
 		}
 	}
 
 	meta := newBucketMetadata(bucket)
-	meta.PanFSPath = opts.PanFSBucketPath
+	meta.PanFSPath = bucketPanFSPath
 
 	if err := meta.Save(ctx, fs); err != nil {
 		return toObjectErr(err, bucket)
@@ -661,30 +679,20 @@ func (fs *PANFSObjects) ListBuckets(ctx context.Context, opts BucketOptions) ([]
 		if isReservedOrInvalidBucket(entry, false) {
 			continue
 		}
-		var fi os.FileInfo
+		meta, err := fs.loadBucketMetadata(ctx, entry)
+		if err != nil {
+			continue
+		}
 
-		bucketDir, err := fs.getBucketPanFSPath(ctx, entry)
+		var fi os.FileInfo
+		fi, err = fsStatVolume(ctx, meta.PanFSPath)
 		if err != nil {
 			continue
-		}
-		fi, err = fsStatVolume(ctx, bucketDir)
-		// There seems like no practical reason to check for errors
-		// at this point, if there are indeed errors we can simply
-		// just ignore such buckets and list only those which
-		// return proper Stat information instead.
-		if err != nil {
-			// Ignore any errors returned here.
-			continue
-		}
-		created := fi.ModTime()
-		meta, err := globalBucketMetadataSys.Get(fi.Name())
-		if err == nil {
-			created = meta.Created
 		}
 
 		bucketInfos = append(bucketInfos, BucketInfo{
-			Name:    fi.Name(),
-			Created: created,
+			Name:    meta.Name,
+			Created: fi.ModTime(),
 		})
 	}
 
