@@ -1873,7 +1873,6 @@ func (fs *PANFSObjects) getTempDir(bucketDir string) string {
 // /a/b/c1 /a/b/f 							OK
 // /a/b  /a/b1/c3							INVALID
 func (fs *PANFSObjects) checkBucketPanFSPathNesting(ctx context.Context, path string) error {
-
 	bucketInfos, err := fs.listBuckets(ctx)
 	if err != nil {
 		return toObjectErr(err)

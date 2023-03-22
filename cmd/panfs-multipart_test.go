@@ -34,7 +34,7 @@ import (
 // initPanFSWithBucket initializes the panfs backend and creates a bucket for testing
 // Fail test when object init or bucket creation will fail
 func initPanFSWithBucket(bucket string, t *testing.T) (obj ObjectLayer, disk string) {
-	var err error = nil
+	var err error
 	defer func() {
 		if err != nil {
 			os.RemoveAll(disk)
