@@ -55,7 +55,7 @@ func NewConsoleLogger(ctx context.Context) *HTTPConsoleLoggerSys {
 }
 
 // SetNodeName - sets the node name if any after distributed setup has initialized
-func (sys *HTTPConsoleLoggerSys) SetNodeName(nodeName string) {
+func (sys *HTTPConsoleLoggerSys) SetNodeName(_ /*nodeName*/ string) {
 	if !globalIsDistErasure {
 		sys.nodeName = ""
 		return

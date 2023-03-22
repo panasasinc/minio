@@ -297,13 +297,13 @@ type s3Objects struct {
 }
 
 // GetMetrics returns this gateway's metrics
-func (l *s3Objects) GetMetrics(ctx context.Context) (*minio.BackendMetrics, error) {
+func (l *s3Objects) GetMetrics(_ context.Context) (*minio.BackendMetrics, error) {
 	return l.Metrics, nil
 }
 
 // Shutdown saves any gateway metadata to disk
 // if necessary and reload upon next restart.
-func (l *s3Objects) Shutdown(ctx context.Context) error {
+func (l *s3Objects) Shutdown(_ context.Context) error {
 	return nil
 }
 
@@ -570,7 +570,7 @@ func (l *s3Objects) CopyObject(ctx context.Context, srcBucket string, srcObject 
 }
 
 // DeleteObject deletes a blob in bucket
-func (l *s3Objects) DeleteObject(ctx context.Context, bucket string, object string, opts minio.ObjectOptions) (minio.ObjectInfo, error) {
+func (l *s3Objects) DeleteObject(ctx context.Context, bucket string, object string, _ minio.ObjectOptions) (minio.ObjectInfo, error) {
 	err := l.Client.RemoveObject(ctx, bucket, object, miniogo.RemoveObjectOptions{})
 	if err != nil {
 		return minio.ObjectInfo{}, minio.ErrorRespToObjectError(err, bucket, object)
@@ -675,7 +675,7 @@ func (l *s3Objects) CopyObjectPart(ctx context.Context, srcBucket, srcObject, de
 }
 
 // GetMultipartInfo returns multipart info of the uploadId of the object
-func (l *s3Objects) GetMultipartInfo(ctx context.Context, bucket, object, uploadID string, opts minio.ObjectOptions) (result minio.MultipartInfo, err error) {
+func (l *s3Objects) GetMultipartInfo(_ context.Context, bucket, object, uploadID string, _ minio.ObjectOptions) (result minio.MultipartInfo, err error) {
 	result.Bucket = bucket
 	result.Object = object
 	result.UploadID = uploadID
@@ -683,7 +683,7 @@ func (l *s3Objects) GetMultipartInfo(ctx context.Context, bucket, object, upload
 }
 
 // ListObjectParts returns all object parts for specified object in specified bucket
-func (l *s3Objects) ListObjectParts(ctx context.Context, bucket string, object string, uploadID string, partNumberMarker int, maxParts int, opts minio.ObjectOptions) (lpi minio.ListPartsInfo, e error) {
+func (l *s3Objects) ListObjectParts(ctx context.Context, bucket, object, uploadID string, partNumberMarker int, maxParts int, _ minio.ObjectOptions) (lpi minio.ListPartsInfo, e error) {
 	result, err := l.Client.ListObjectParts(ctx, bucket, object, uploadID, partNumberMarker, maxParts)
 	if err != nil {
 		return lpi, err

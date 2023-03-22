@@ -72,7 +72,7 @@ func TestSimpleLock(_ *testing.T) {
 	dm.Unlock()
 }
 
-func TestSimpleLockUnlockMultipleTimes(t *testing.T) {
+func TestSimpleLockUnlockMultipleTimes(_ *testing.T) {
 	dm := NewDRWMutex(ds, "test")
 
 	dm.Lock(id, source)
@@ -97,7 +97,7 @@ func TestSimpleLockUnlockMultipleTimes(t *testing.T) {
 }
 
 // Test two locks for same resource, one succeeds, one fails (after timeout)
-func TestTwoSimultaneousLocksForSameResource(t *testing.T) {
+func TestTwoSimultaneousLocksForSameResource(_ *testing.T) {
 	dm1st := NewDRWMutex(ds, "aap")
 	dm2nd := NewDRWMutex(ds, "aap")
 
@@ -195,7 +195,7 @@ func TestThreeSimultaneousLocksForSameResource(t *testing.T) {
 }
 
 // Test two locks for different resources, both succeed
-func TestTwoSimultaneousLocksForDifferentResources(t *testing.T) {
+func TestTwoSimultaneousLocksForDifferentResources(_ *testing.T) {
 	dm1 := NewDRWMutex(ds, "aap")
 	dm2 := NewDRWMutex(ds, "noot")
 

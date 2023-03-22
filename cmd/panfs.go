@@ -1443,7 +1443,7 @@ func (fs *PANFSObjects) isLeafDir(bucket string, leafPath string) bool {
 	return fs.isObjectDir(bucket, leafPath)
 }
 
-func (fs *PANFSObjects) isLeaf(bucket string, leafPath string) bool {
+func (fs *PANFSObjects) isLeaf(_ /*bucket*/ string, leafPath string) bool {
 	return !strings.HasSuffix(leafPath, slashSeparator)
 }
 
@@ -1713,7 +1713,7 @@ func (fs *PANFSObjects) GetMetrics(ctx context.Context) (*BackendMetrics, error)
 }
 
 // ListObjectsV2 lists all blobs in bucket filtered by prefix
-func (fs *PANFSObjects) ListObjectsV2(ctx context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, fetchOwner bool, startAfter string) (result ListObjectsV2Info, err error) {
+func (fs *PANFSObjects) ListObjectsV2(ctx context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, _ /*fetchOwner*/ bool, startAfter string) (result ListObjectsV2Info, err error) {
 	marker := continuationToken
 	if marker == "" {
 		marker = startAfter

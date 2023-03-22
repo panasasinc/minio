@@ -87,7 +87,7 @@ func (az *warmBackendAzure) Get(ctx context.Context, object string, _ remoteVers
 	return rc, nil
 }
 
-func (az *warmBackendAzure) Remove(ctx context.Context, object string, rv remoteVersionID) error {
+func (az *warmBackendAzure) Remove(ctx context.Context, object string, _ remoteVersionID) error {
 	blob := az.serviceURL.NewContainerURL(az.Bucket).NewBlobURL(az.getDest(object))
 	_, err := blob.Delete(ctx, azblob.DeleteSnapshotsOptionNone, azblob.BlobAccessConditions{})
 	return azureToObjectError(err, az.Bucket, object)

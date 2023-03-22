@@ -390,7 +390,7 @@ func (rs *ReplicationState) targetState(arn string) (r replicatedTargetInfo) {
 }
 
 // getReplicationState returns replication state using target replicated info for the targets
-func getReplicationState(rinfos replicatedInfos, prevState ReplicationState, vID string) ReplicationState {
+func getReplicationState(rinfos replicatedInfos, prevState ReplicationState, _ /*vID*/ string) ReplicationState {
 	rs := ReplicationState{
 		ReplicateDecisionStr: prevState.ReplicateDecisionStr,
 		ResetStatusesMap:     prevState.ResetStatusesMap,
@@ -535,7 +535,7 @@ func getHealReplicateObjectInfo(objInfo ObjectInfo, rcfg replicationConfig) Repl
 }
 
 // vID here represents the versionID client specified in request - need to distinguish between delete marker and delete marker deletion
-func (o *ObjectInfo) getReplicationState(dsc string, vID string, heal bool) ReplicationState {
+func (o *ObjectInfo) getReplicationState(dsc string, _ /*vID*/ string, _ /*heal*/ bool) ReplicationState {
 	rs := ReplicationState{
 		ReplicationStatusInternal:  o.ReplicationStatusInternal,
 		VersionPurgeStatusInternal: o.VersionPurgeStatusInternal,
@@ -701,7 +701,7 @@ type BucketReplicationResyncStatus struct {
 	LastUpdate time.Time                                `json:"lastUpdate" msg:"lu"`
 }
 
-func newBucketResyncStatus(bucket string) BucketReplicationResyncStatus {
+func newBucketResyncStatus(_ /*bucket*/ string) BucketReplicationResyncStatus {
 	return BucketReplicationResyncStatus{
 		TargetsMap: make(map[string]TargetReplicationResyncStatus),
 		Version:    resyncMetaVersion,

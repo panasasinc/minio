@@ -720,7 +720,7 @@ func (s *xlStorage) GetDiskID() (string, error) {
 }
 
 // Make a volume entry.
-func (s *xlStorage) SetDiskID(id string) {
+func (s *xlStorage) SetDiskID(_ /*id*/ string) {
 	// NO-OP for xlStorage as it is handled either by xlStorageDiskIDCheck{} for local disks or
 	// storage rest server for remote disks.
 }

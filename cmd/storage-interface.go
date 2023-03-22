@@ -114,7 +114,7 @@ type unrecognizedDisk struct {
 	storage StorageAPI
 }
 
-func (p *unrecognizedDisk) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writer) (err error) {
+func (p *unrecognizedDisk) WalkDir(_ context.Context, _ WalkDirOptions, _ io.Writer) (err error) {
 	return errDiskNotFound
 }
 
@@ -146,7 +146,7 @@ func (p *unrecognizedDisk) Healing() *healingTracker {
 	return nil
 }
 
-func (p *unrecognizedDisk) NSScanner(ctx context.Context, cache dataUsageCache, updates chan<- dataUsageEntry, scanMode madmin.HealScanMode) (dataUsageCache, error) {
+func (p *unrecognizedDisk) NSScanner(_ context.Context, _ dataUsageCache, _ /*updates*/ chan<- dataUsageEntry, _ madmin.HealScanMode) (dataUsageCache, error) {
 	return dataUsageCache{}, errDiskNotFound
 }
 
@@ -154,7 +154,7 @@ func (p *unrecognizedDisk) GetDiskLoc() (poolIdx, setIdx, diskIdx int) {
 	return -1, -1, -1
 }
 
-func (p *unrecognizedDisk) SetDiskLoc(poolIdx, setIdx, diskIdx int) {
+func (p *unrecognizedDisk) SetDiskLoc(_, _, _ /*poolIdx, setIdx, diskIdx*/ int) {
 }
 
 func (p *unrecognizedDisk) Close() error {
@@ -165,72 +165,72 @@ func (p *unrecognizedDisk) GetDiskID() (string, error) {
 	return "", errDiskNotFound
 }
 
-func (p *unrecognizedDisk) SetDiskID(id string) {
+func (p *unrecognizedDisk) SetDiskID(_ /*id*/ string) {
 }
 
-func (p *unrecognizedDisk) DiskInfo(ctx context.Context) (info DiskInfo, err error) {
+func (p *unrecognizedDisk) DiskInfo(_ context.Context) (info DiskInfo, err error) {
 	return info, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) MakeVolBulk(ctx context.Context, volumes ...string) (err error) {
+func (p *unrecognizedDisk) MakeVolBulk(_ context.Context, _ /*volumes*/ ...string) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) MakeVol(ctx context.Context, volume string) (err error) {
+func (p *unrecognizedDisk) MakeVol(_ context.Context, _ /*volume*/ string) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ListVols(ctx context.Context) ([]VolInfo, error) {
+func (p *unrecognizedDisk) ListVols(_ context.Context) ([]VolInfo, error) {
 	return nil, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) StatVol(ctx context.Context, volume string) (vol VolInfo, err error) {
+func (p *unrecognizedDisk) StatVol(_ context.Context, _ /*volume*/ string) (vol VolInfo, err error) {
 	return vol, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) DeleteVol(ctx context.Context, volume string, forceDelete bool) (err error) {
+func (p *unrecognizedDisk) DeleteVol(_ context.Context, _ /*volume*/ string, forceDelete bool) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ListDir(ctx context.Context, volume, dirPath string, count int) ([]string, error) {
+func (p *unrecognizedDisk) ListDir(_ context.Context, _, _ /*volume, dirPath*/ string, _ /*count*/ int) ([]string, error) {
 	return nil, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ReadFile(ctx context.Context, volume string, path string, offset int64, buf []byte, verifier *BitrotVerifier) (n int64, err error) {
+func (p *unrecognizedDisk) ReadFile(_ context.Context, _, _ /*volume, path*/ string, offset int64, buf []byte, verifier *BitrotVerifier) (n int64, err error) {
 	return 0, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) AppendFile(ctx context.Context, volume string, path string, buf []byte) (err error) {
+func (p *unrecognizedDisk) AppendFile(_ context.Context, _, _ /*volume, path*/ string, buf []byte) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) CreateFile(ctx context.Context, volume, path string, size int64, reader io.Reader) error {
+func (p *unrecognizedDisk) CreateFile(_ context.Context, _, _ /*volume, path*/ string, size int64, reader io.Reader) error {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ReadFileStream(ctx context.Context, volume, path string, offset, length int64) (io.ReadCloser, error) {
+func (p *unrecognizedDisk) ReadFileStream(_ context.Context, _, _ /*volume, path*/ string, offset, length int64) (io.ReadCloser, error) {
 	return nil, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) RenameFile(ctx context.Context, srcVolume, srcPath, dstVolume, dstPath string) error {
+func (p *unrecognizedDisk) RenameFile(_ context.Context, _, _, _, _ /*srcVolume, srcPath, dstVolume, dstPath*/ string) error {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) RenameData(ctx context.Context, srcVolume, srcPath string, fi FileInfo, dstVolume, dstPath string) (uint64, error) {
+func (p *unrecognizedDisk) RenameData(_ context.Context, _, _ /*srcVolume, srcPath*/ string, _ FileInfo, _, _ /*dstVolume, dstPath*/ string) (uint64, error) {
 	return 0, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) CheckParts(ctx context.Context, volume string, path string, fi FileInfo) (err error) {
+func (p *unrecognizedDisk) CheckParts(_ context.Context, _, _ /*volume, path*/ string, _ FileInfo) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) Delete(ctx context.Context, volume string, path string, deleteOpts DeleteOptions) (err error) {
+func (p *unrecognizedDisk) Delete(_ context.Context, _, _ /*volume, path*/ string, _ DeleteOptions) (err error) {
 	return errDiskNotFound
 }
 
 // DeleteVersions deletes slice of versions, it can be same object
 // or multiple objects.
-func (p *unrecognizedDisk) DeleteVersions(ctx context.Context, volume string, versions []FileInfoVersions) (errs []error) {
+func (p *unrecognizedDisk) DeleteVersions(_ context.Context, _ /*volume*/ string, versions []FileInfoVersions) (errs []error) {
 	errs = make([]error, len(versions))
 
 	for i := range errs {
@@ -239,43 +239,43 @@ func (p *unrecognizedDisk) DeleteVersions(ctx context.Context, volume string, ve
 	return errs
 }
 
-func (p *unrecognizedDisk) VerifyFile(ctx context.Context, volume, path string, fi FileInfo) error {
+func (p *unrecognizedDisk) VerifyFile(_ context.Context, _, _ /*volume, path*/ string, _ FileInfo) error {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) WriteAll(ctx context.Context, volume string, path string, b []byte) (err error) {
+func (p *unrecognizedDisk) WriteAll(_ context.Context, _, _ /*volume, path*/ string, _ []byte) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) DeleteVersion(ctx context.Context, volume, path string, fi FileInfo, forceDelMarker bool) (err error) {
+func (p *unrecognizedDisk) DeleteVersion(_ context.Context, _, _ /*volume, path*/ string, _ FileInfo, _ /*forceDelMarker*/ bool) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) UpdateMetadata(ctx context.Context, volume, path string, fi FileInfo) (err error) {
+func (p *unrecognizedDisk) UpdateMetadata(_ context.Context, _, _ /*volume, path*/ string, _ FileInfo) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) WriteMetadata(ctx context.Context, volume, path string, fi FileInfo) (err error) {
+func (p *unrecognizedDisk) WriteMetadata(_ context.Context, _, _ /*volume, path*/ string, _ FileInfo) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ReadVersion(ctx context.Context, volume, path, versionID string, readData bool) (fi FileInfo, err error) {
+func (p *unrecognizedDisk) ReadVersion(_ context.Context, _, _, _ /*volume, path, versionID*/ string, _ /*readData*/ bool) (fi FileInfo, err error) {
 	return fi, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ReadXL(ctx context.Context, volume, path string, readData bool) (rf RawFileInfo, err error) {
+func (p *unrecognizedDisk) ReadXL(_ context.Context, _, _ /*volume, path*/ string, _ /*readData*/ bool) (rf RawFileInfo, err error) {
 	return rf, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ReadAll(ctx context.Context, volume string, path string) (buf []byte, err error) {
+func (p *unrecognizedDisk) ReadAll(_ context.Context, _, _ /*volume, path*/ string) (buf []byte, err error) {
 	return nil, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) StatInfoFile(ctx context.Context, volume, path string, glob bool) (stat []StatInfo, err error) {
+func (p *unrecognizedDisk) StatInfoFile(_ context.Context, _, _ /*volume, path*/ string, _ /*glob*/ bool) (stat []StatInfo, err error) {
 	return nil, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ReadMultiple(ctx context.Context, req ReadMultipleReq, resp chan<- ReadMultipleResp) error {
+func (p *unrecognizedDisk) ReadMultiple(_ context.Context, _ ReadMultipleReq, resp chan<- ReadMultipleResp) error {
 	close(resp)
 	return errDiskNotFound
 }

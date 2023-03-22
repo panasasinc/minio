@@ -125,7 +125,7 @@ func (sys *IAMSys) LoadGroup(ctx context.Context, _ ObjectLayer, group string) e
 }
 
 // LoadPolicy - reloads a specific canned policy from backend disks or etcd.
-func (sys *IAMSys) LoadPolicy(ctx context.Context, objAPI ObjectLayer, policyName string) error {
+func (sys *IAMSys) LoadPolicy(ctx context.Context, _ ObjectLayer, policyName string) error {
 	if !sys.Initialized() {
 		return errServerNotInitialized
 	}
@@ -135,7 +135,7 @@ func (sys *IAMSys) LoadPolicy(ctx context.Context, objAPI ObjectLayer, policyNam
 
 // LoadPolicyMapping - loads the mapped policy for a user or group
 // from storage into server memory.
-func (sys *IAMSys) LoadPolicyMapping(ctx context.Context, objAPI ObjectLayer, userOrGroup string, userType IAMUserType, isGroup bool) error {
+func (sys *IAMSys) LoadPolicyMapping(ctx context.Context, _ ObjectLayer, userOrGroup string, userType IAMUserType, isGroup bool) error {
 	if !sys.Initialized() {
 		return errServerNotInitialized
 	}
@@ -144,7 +144,7 @@ func (sys *IAMSys) LoadPolicyMapping(ctx context.Context, objAPI ObjectLayer, us
 }
 
 // LoadUser - reloads a specific user from backend disks or etcd.
-func (sys *IAMSys) LoadUser(ctx context.Context, objAPI ObjectLayer, accessKey string, userType IAMUserType) error {
+func (sys *IAMSys) LoadUser(ctx context.Context, _ ObjectLayer, accessKey string, userType IAMUserType) error {
 	if !sys.Initialized() {
 		return errServerNotInitialized
 	}

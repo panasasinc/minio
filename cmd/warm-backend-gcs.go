@@ -78,7 +78,7 @@ func (gcs *warmBackendGCS) Get(ctx context.Context, key string, _ remoteVersionI
 	return r, nil
 }
 
-func (gcs *warmBackendGCS) Remove(ctx context.Context, key string, rv remoteVersionID) error {
+func (gcs *warmBackendGCS) Remove(ctx context.Context, key string, _ remoteVersionID) error {
 	err := gcs.client.Bucket(gcs.Bucket).Object(gcs.getDest(key)).Delete(ctx)
 	return gcsToObjectError(err, gcs.Bucket, key)
 }

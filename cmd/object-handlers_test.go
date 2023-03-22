@@ -210,7 +210,7 @@ func TestAPIHeadObjectHandlerWithEncryption(t *testing.T) {
 	ExecObjectLayerAPITest(t, testAPIHeadObjectHandlerWithEncryption, []string{"NewMultipart", "PutObjectPart", "CompleteMultipart", "GetObject", "PutObject", "HeadObject"})
 }
 
-func testAPIHeadObjectHandlerWithEncryption(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
+func testAPIHeadObjectHandlerWithEncryption(_ ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
 	credentials auth.Credentials, t *testing.T,
 ) {
 	// Set SSL to on to do encryption tests
@@ -644,7 +644,7 @@ func TestAPIGetObjectWithMPHandler(t *testing.T) {
 	ExecExtendedObjectLayerAPITest(t, testAPIGetObjectWithMPHandler, []string{"NewMultipart", "PutObjectPart", "CompleteMultipart", "GetObject", "PutObject"})
 }
 
-func testAPIGetObjectWithMPHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
+func testAPIGetObjectWithMPHandler(_ ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
 	credentials auth.Credentials, t *testing.T,
 ) {
 	// Set SSL to on to do encryption tests
@@ -3474,7 +3474,7 @@ func TestAPIPutObjectPartHandlerStreaming(t *testing.T) {
 	ExecExtendedObjectLayerAPITest(t, testAPIPutObjectPartHandlerStreaming, []string{"NewMultipart", "PutObjectPart"})
 }
 
-func testAPIPutObjectPartHandlerStreaming(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
+func testAPIPutObjectPartHandlerStreaming(_ ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
 	credentials auth.Credentials, t *testing.T,
 ) {
 	testObject := "testobject"

@@ -1420,7 +1420,7 @@ func (fs *FSObjects) GetMetrics(ctx context.Context) (*BackendMetrics, error) {
 }
 
 // ListObjectsV2 lists all blobs in bucket filtered by prefix
-func (fs *FSObjects) ListObjectsV2(ctx context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, fetchOwner bool, startAfter string) (result ListObjectsV2Info, err error) {
+func (fs *FSObjects) ListObjectsV2(ctx context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, _ /*fetchOwner*/ bool, startAfter string) (result ListObjectsV2Info, err error) {
 	marker := continuationToken
 	if marker == "" {
 		marker = startAfter

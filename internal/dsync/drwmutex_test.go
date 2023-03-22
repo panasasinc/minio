@@ -190,8 +190,7 @@ func reader(resource string, numIterations int, activity *int32, cdone chan bool
 			if n < 1 || n >= 10000 {
 				panic(fmt.Sprintf("wlock(%d)\n", n))
 			}
-			for i := 0; i < 100; i++ {
-			}
+			time.Sleep(time.Nanosecond * 20)
 			atomic.AddInt32(activity, -1)
 			rwm.RUnlock()
 		}
@@ -208,8 +207,7 @@ func writer(resource string, numIterations int, activity *int32, cdone chan bool
 			if n != 10000 {
 				panic(fmt.Sprintf("wlock(%d)\n", n))
 			}
-			for i := 0; i < 100; i++ {
-			}
+			time.Sleep(time.Nanosecond * 20)
 			atomic.AddInt32(activity, -10000)
 			rwm.Unlock()
 		}

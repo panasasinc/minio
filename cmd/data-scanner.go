@@ -1231,7 +1231,7 @@ func (i *scannerItem) objectPath() string {
 }
 
 // healReplication will heal a scanned item that has failed replication.
-func (i *scannerItem) healReplication(ctx context.Context, o ObjectLayer, oi ObjectInfo, sizeS *sizeSummary) {
+func (i *scannerItem) healReplication(ctx context.Context, _ ObjectLayer, oi ObjectInfo, sizeS *sizeSummary) {
 	if oi.VersionID == "" {
 		return
 	}

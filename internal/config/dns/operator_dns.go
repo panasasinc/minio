@@ -170,7 +170,7 @@ func (c *OperatorDNS) List() (_ map[string][]SrvRecord, err error) {
 // This is a No Op for Operator because, there is no intent to enforce global
 // namespace at MinIO level with this DNS entry. The global namespace in
 // enforced by the Kubernetes Operator
-func (c *OperatorDNS) Get(bucket string) (_ []SrvRecord, err error) {
+func (c *OperatorDNS) Get(_ /*bucket*/ string) (_ []SrvRecord, err error) {
 	return nil, ErrNotImplemented
 }
 

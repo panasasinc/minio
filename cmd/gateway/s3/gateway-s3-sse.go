@@ -781,7 +781,7 @@ func (l *s3EncObjects) getStalePartsForBucket(ctx context.Context, bucket string
 	return
 }
 
-func (l *s3EncObjects) DeleteBucket(ctx context.Context, bucket string, opts minio.DeleteBucketOptions) error {
+func (l *s3EncObjects) DeleteBucket(ctx context.Context, bucket string, _ minio.DeleteBucketOptions) error {
 	var prefix, continuationToken, delimiter, startAfter string
 	expParts := make(map[string]string)
 

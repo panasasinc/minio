@@ -138,7 +138,7 @@ func (m gwMetaV1) ObjectToPartOffset(ctx context.Context, offset int64) (partInd
 }
 
 // Constructs GWMetaV1 using `jsoniter` lib to retrieve each field.
-func gwMetaUnmarshalJSON(ctx context.Context, gwMetaBuf []byte) (gwMeta gwMetaV1, err error) {
+func gwMetaUnmarshalJSON(_ context.Context, gwMetaBuf []byte) (gwMeta gwMetaV1, err error) {
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	err = json.Unmarshal(gwMetaBuf, &gwMeta)
 	return gwMeta, err

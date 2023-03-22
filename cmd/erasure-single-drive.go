@@ -2227,7 +2227,7 @@ func (es *erasureSingle) NewMultipartUpload(ctx context.Context, bucket, object 
 // data is read from an existing object.
 //
 // Implements S3 compatible Upload Part Copy API.
-func (es *erasureSingle) CopyObjectPart(ctx context.Context, srcBucket, srcObject, dstBucket, dstObject, uploadID string, partID int, startOffset int64, length int64, srcInfo ObjectInfo, srcOpts, dstOpts ObjectOptions) (pi PartInfo, e error) {
+func (es *erasureSingle) CopyObjectPart(ctx context.Context, _, _ /*srcBucket, srcObject*/, dstBucket, dstObject, uploadID string, partID int, _, _ /*startOffset, length*/ int64, srcInfo ObjectInfo, _ /*srcOpts*/, dstOpts ObjectOptions) (pi PartInfo, e error) {
 	partInfo, err := es.PutObjectPart(ctx, dstBucket, dstObject, uploadID, partID, NewPutObjReader(srcInfo.Reader), dstOpts)
 	if err != nil {
 		return pi, toObjectErr(err, dstBucket, dstObject)
@@ -3007,7 +3007,7 @@ func (es *erasureSingle) ListObjects(ctx context.Context, bucket, prefix, marker
 	return loi, nil
 }
 
-func (es *erasureSingle) ListObjectsV2(ctx context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, fetchOwner bool, startAfter string) (ListObjectsV2Info, error) {
+func (es *erasureSingle) ListObjectsV2(ctx context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, _ /*fetchOwner*/ bool, startAfter string) (ListObjectsV2Info, error) {
 	marker := continuationToken
 	if marker == "" {
 		marker = startAfter

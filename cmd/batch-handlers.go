@@ -816,7 +816,7 @@ func (j *BatchJobRequest) load(ctx context.Context, api ObjectLayer, name string
 	return err
 }
 
-func batchReplicationOpts(ctx context.Context, sc string, objInfo ObjectInfo) (putOpts miniogo.PutObjectOptions, err error) {
+func batchReplicationOpts(ctx context.Context, _ /*sc*/ string, objInfo ObjectInfo) (putOpts miniogo.PutObjectOptions, err error) {
 	// TODO: support custom storage class for remote replication
 	putOpts, err = putReplicationOpts(ctx, "", objInfo)
 	if err != nil {
