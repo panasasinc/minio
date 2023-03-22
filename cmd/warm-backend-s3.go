@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/minio/madmin-go"
-	minio "github.com/minio/minio-go/v7"
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -40,8 +39,8 @@ var (
 )
 
 type warmBackendS3 struct {
-	client       *minio.Client
-	core         *minio.Core
+	client       *miniogo.Client
+	core         *miniogo.Core
 	Bucket       string
 	Prefix       string
 	StorageClass string
@@ -65,12 +64,12 @@ func (s3 *warmBackendS3) getDest(object string) string {
 }
 
 func (s3 *warmBackendS3) Put(ctx context.Context, object string, r io.Reader, length int64) (remoteVersionID, error) {
-	res, err := s3.client.PutObject(ctx, s3.Bucket, s3.getDest(object), r, length, minio.PutObjectOptions{StorageClass: s3.StorageClass})
+	res, err := s3.client.PutObject(ctx, s3.Bucket, s3.getDest(object), r, length, miniogo.PutObjectOptions{StorageClass: s3.StorageClass})
 	return remoteVersionID(res.VersionID), s3.ToObjectError(err, object)
 }
 
 func (s3 *warmBackendS3) Get(ctx context.Context, object string, rv remoteVersionID, opts WarmBackendGetOpts) (io.ReadCloser, error) {
-	gopts := minio.GetObjectOptions{}
+	gopts := miniogo.GetObjectOptions{}
 
 	if rv != "" {
 		gopts.VersionID = string(rv)
@@ -90,7 +89,7 @@ func (s3 *warmBackendS3) Get(ctx context.Context, object string, rv remoteVersio
 }
 
 func (s3 *warmBackendS3) Remove(ctx context.Context, object string, rv remoteVersionID) error {
-	ropts := minio.RemoveObjectOptions{}
+	ropts := miniogo.RemoveObjectOptions{}
 	if rv != "" {
 		ropts.VersionID = string(rv)
 	}
@@ -120,16 +119,16 @@ func newWarmBackendS3(conf madmin.TierS3) (*warmBackendS3, error) {
 	getRemoteTierTargetInstanceTransportOnce.Do(func() {
 		getRemoteTierTargetInstanceTransport = newGatewayHTTPTransport(10 * time.Minute)
 	})
-	opts := &minio.Options{
+	opts := &miniogo.Options{
 		Creds:     creds,
 		Secure:    u.Scheme == "https",
 		Transport: getRemoteTierTargetInstanceTransport,
 	}
-	client, err := minio.New(u.Host, opts)
+	client, err := miniogo.New(u.Host, opts)
 	if err != nil {
 		return nil, err
 	}
-	core, err := minio.NewCore(u.Host, opts)
+	core, err := miniogo.NewCore(u.Host, opts)
 	if err != nil {
 		return nil, err
 	}

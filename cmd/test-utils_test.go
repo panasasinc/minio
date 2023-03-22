@@ -1488,7 +1488,7 @@ func getListMultipartUploadsURLWithParams(endPoint, bucketName, prefix, keyMarke
 }
 
 // return URL for a listing parts on a given upload id.
-func getListMultipartURLWithParams(endPoint, bucketName, objectName, uploadID, maxParts, partNumberMarker, encoding string) string {
+func getListMultipartURLWithParams(endPoint, bucketName, objectName, uploadID, maxParts, partNumberMarker, _ /*encoding*/ string) string {
 	queryValues := url.Values{}
 	queryValues.Set("uploadId", uploadID)
 	queryValues.Set("max-parts", maxParts)
@@ -1641,8 +1641,8 @@ func prepareTestBackend(ctx context.Context, instanceType string) (ObjectLayer, 
 // The test works in 2 steps, here is the description of the steps.
 //
 //	STEP 1: Call the handler with the unsigned HTTP request (anonReq), assert for the `ErrAccessDenied` error response.
-func ExecObjectLayerAPIAnonTest(t *testing.T, obj ObjectLayer, testName, bucketName, objectName, instanceType string, apiRouter http.Handler,
-	anonReq *http.Request, bucketPolicy *policy.Policy,
+func ExecObjectLayerAPIAnonTest(t *testing.T, _ ObjectLayer, testName, bucketName, objectName, instanceType string, apiRouter http.Handler,
+	anonReq *http.Request, _ /*bucketPolicy*/ *policy.Policy,
 ) {
 	anonTestStr := "Anonymous HTTP request test"
 	unknownSignTestStr := "Unknown HTTP signature test"

@@ -58,7 +58,7 @@ func (az *warmBackendAzure) tier() azblob.AccessTierType {
 // FIXME: add support for remote version ID in Azure remote tier and remove
 // this. Currently it's a no-op.
 
-func (az *warmBackendAzure) Put(ctx context.Context, object string, r io.Reader, length int64) (remoteVersionID, error) {
+func (az *warmBackendAzure) Put(ctx context.Context, object string, r io.Reader, _ /*length*/ int64) (remoteVersionID, error) {
 	blobURL := az.serviceURL.NewContainerURL(az.Bucket).NewBlockBlobURL(az.getDest(object))
 	// set tier if specified -
 	if az.StorageClass != "" {

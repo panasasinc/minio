@@ -129,6 +129,7 @@ func (s *TestSuiteIAM) TestDeleteUserRace(c *check) {
 		secretKeys[i] = secretKey
 	}
 
+	ret := make(chan error, userCount)
 	wg := sync.WaitGroup{}
 	for i := 0; i < userCount; i++ {
 		wg.Add(1)
@@ -137,10 +138,16 @@ func (s *TestSuiteIAM) TestDeleteUserRace(c *check) {
 			uClient := s.getUserClient(c, accessKeys[i], secretKeys[i], "")
 			err := s.adm.RemoveUser(ctx, accessKeys[i])
 			if err != nil {
-				c.Fatalf("unable to remove user: %v", err)
+				ret <- fmt.Errorf("unable to remove user: %v", err)
+				return
 			}
 			c.mustNotListObjects(ctx, uClient, bucket)
 		}(i)
 	}
 	wg.Wait()
+	select {
+	case err = <-ret:
+		c.Fatal(err)
+	default:
+	}
 }

@@ -223,7 +223,7 @@ func (api objectAPIHandlers) getObjectInArchiveFileHandler(ctx context.Context, 
 }
 
 // listObjectsV2InArchive generates S3 listing result ListObjectsV2Info from zip file, all parameters are already validated by the caller.
-func listObjectsV2InArchive(ctx context.Context, objectAPI ObjectLayer, bucket, prefix, token, delimiter string, maxKeys int, fetchOwner bool, startAfter string) (ListObjectsV2Info, error) {
+func listObjectsV2InArchive(ctx context.Context, objectAPI ObjectLayer, bucket, prefix, token, delimiter string, maxKeys int, _ /*fetchOwner*/ bool, startAfter string) (ListObjectsV2Info, error) {
 	zipPath, _, err := splitZipExtensionPath(prefix)
 	if err != nil {
 		// Return empty listing

@@ -876,7 +876,7 @@ func TestObjectQuorumFromMeta(t *testing.T) {
 	ExecObjectLayerTestWithDirs(t, testObjectQuorumFromMeta)
 }
 
-func testObjectQuorumFromMeta(obj ObjectLayer, instanceType string, dirs []string, t TestErrHandler) {
+func testObjectQuorumFromMeta(obj ObjectLayer, _ /*instanceType*/ string, _ /*dirs*/ []string, t TestErrHandler) {
 	bucket := getRandomBucketName()
 
 	var opts ObjectOptions

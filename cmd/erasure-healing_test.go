@@ -1406,7 +1406,7 @@ func TestHealLastDataShard(t *testing.T) {
 			}
 
 			firstGr, err := obj.GetObjectNInfo(ctx, bucket, object, nil, nil, noLock, ObjectOptions{})
-			defer firstGr.Close()
+			defer func() { _ = firstGr.Close() }()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1436,7 +1436,7 @@ func TestHealLastDataShard(t *testing.T) {
 			}
 
 			secondGr, err := obj.GetObjectNInfo(ctx, bucket, object, nil, nil, noLock, ObjectOptions{})
-			defer secondGr.Close()
+			defer func() { _ = secondGr.Close() }()
 			if err != nil {
 				t.Fatal(err)
 			}

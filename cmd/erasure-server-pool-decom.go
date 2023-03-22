@@ -395,7 +395,7 @@ func (p *poolMeta) validate(pools []*erasureSets) (bool, error) {
 	return update, nil
 }
 
-func (p *poolMeta) load(ctx context.Context, pool *erasureSets, pools []*erasureSets) error {
+func (p *poolMeta) load(ctx context.Context, pool *erasureSets, _ /*pools*/ []*erasureSets) error {
 	data, err := readConfig(ctx, pool, poolMetaName)
 	if err != nil {
 		if errors.Is(err, errConfigNotFound) || isErrObjectNotFound(err) {

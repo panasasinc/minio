@@ -1774,11 +1774,11 @@ func mergeXLV2Versions(quorum int, strict bool, requestedVersions int, versions 
 		}
 
 		var latest xlMetaV2ShallowVersion
-		var latestCount int
+
 		if consistent {
 			// All had the same signature, easy.
 			latest = tops[0]
-			latestCount = len(tops)
+			//latestCount = len(tops)
 			merged = append(merged, latest)
 
 			// Calculate latest 'n' non-free versions.
@@ -1787,6 +1787,7 @@ func mergeXLV2Versions(quorum int, strict bool, requestedVersions int, versions 
 			}
 
 		} else {
+			var latestCount int
 			// Find latest.
 			for i, ver := range tops {
 				if ver.header == latest.header {

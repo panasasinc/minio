@@ -32,7 +32,6 @@ import (
 	"github.com/minio/madmin-go"
 	"github.com/minio/minio/internal/event"
 	"github.com/minio/minio/internal/http"
-	xhttp "github.com/minio/minio/internal/http"
 	"github.com/minio/minio/internal/logger"
 	"github.com/minio/minio/internal/pubsub"
 	"github.com/minio/minio/internal/rest"
@@ -774,7 +773,7 @@ func newPeerRESTClient(peer *xnet.Host) *peerRESTClient {
 		ctx, cancel := context.WithTimeout(context.Background(), restClient.HealthCheckTimeout)
 		defer cancel()
 		respBody, err := healthClient.Call(ctx, peerRESTMethodHealth, nil, nil, -1)
-		xhttp.DrainBody(respBody)
+		http.DrainBody(respBody)
 		return !isNetworkError(err)
 	}
 

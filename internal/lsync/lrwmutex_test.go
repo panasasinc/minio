@@ -29,7 +29,7 @@ import (
 	. "github.com/minio/minio/internal/lsync"
 )
 
-func testSimpleWriteLock(t *testing.T, duration time.Duration) (locked bool) {
+func testSimpleWriteLock(duration time.Duration) (locked bool) {
 	ctx := context.Background()
 	lrwm := NewLRWMutex()
 
@@ -62,14 +62,12 @@ func testSimpleWriteLock(t *testing.T, duration time.Duration) (locked bool) {
 		time.Sleep(1 * time.Second)
 
 		lrwm.Unlock()
-	} else {
-		// fmt.Println("Write lock failed due to timeout")
 	}
 	return
 }
 
 func TestSimpleWriteLockAcquired(t *testing.T) {
-	locked := testSimpleWriteLock(t, 5*time.Second)
+	locked := testSimpleWriteLock(5 * time.Second)
 
 	expected := true
 	if locked != expected {
@@ -78,7 +76,7 @@ func TestSimpleWriteLockAcquired(t *testing.T) {
 }
 
 func TestSimpleWriteLockTimedOut(t *testing.T) {
-	locked := testSimpleWriteLock(t, time.Second)
+	locked := testSimpleWriteLock(time.Second)
 
 	expected := false
 	if locked != expected {
@@ -86,7 +84,7 @@ func TestSimpleWriteLockTimedOut(t *testing.T) {
 	}
 }
 
-func testDualWriteLock(t *testing.T, duration time.Duration) (locked bool) {
+func testDualWriteLock(duration time.Duration) (locked bool) {
 	ctx := context.Background()
 	lrwm := NewLRWMutex()
 
@@ -108,14 +106,12 @@ func testDualWriteLock(t *testing.T, duration time.Duration) (locked bool) {
 		time.Sleep(time.Second)
 
 		lrwm.Unlock()
-	} else {
-		// fmt.Println("2nd write lock failed due to timeout")
 	}
 	return
 }
 
 func TestDualWriteLockAcquired(t *testing.T) {
-	locked := testDualWriteLock(t, 3*time.Second)
+	locked := testDualWriteLock(3 * time.Second)
 
 	expected := true
 	if locked != expected {
@@ -124,7 +120,7 @@ func TestDualWriteLockAcquired(t *testing.T) {
 }
 
 func TestDualWriteLockTimedOut(t *testing.T) {
-	locked := testDualWriteLock(t, time.Second)
+	locked := testDualWriteLock(time.Second)
 
 	expected := false
 	if locked != expected {
@@ -169,7 +165,7 @@ func doTestParallelReaders(numReaders, gomaxprocs int) {
 }
 
 // Borrowed from rwmutex_test.go
-func TestParallelReaders(t *testing.T) {
+func TestParallelReaders(_ *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
 	doTestParallelReaders(1, 4)
 	doTestParallelReaders(3, 4)
@@ -201,8 +197,7 @@ func writer(rwm *LRWMutex, numIterations int, activity *int32, cdone chan bool) 
 			if n != 10000 {
 				panic(fmt.Sprintf("wlock(%d)\n", n))
 			}
-			for i := 0; i < 100; i++ {
-			}
+			time.Sleep(time.Nanosecond * 20)
 			atomic.AddInt32(activity, -10000)
 			rwm.Unlock()
 		}

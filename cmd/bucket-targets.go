@@ -26,7 +26,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/minio/madmin-go"
-	"github.com/minio/minio-go/v7"
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio/internal/bucket/replication"
@@ -221,7 +220,7 @@ func (sys *BucketTargetSys) SetTarget(ctx context.Context, bucket string, tgt *m
 	// validate if target credentials are ok
 	exists, err := clnt.BucketExists(ctx, tgt.TargetBucket)
 	if err != nil {
-		if minio.ToErrorResponse(err).Code == "NoSuchBucket" {
+		if miniogo.ToErrorResponse(err).Code == "NoSuchBucket" {
 			return BucketRemoteTargetNotFound{Bucket: tgt.TargetBucket}
 		}
 		return RemoteTargetConnectionErr{Bucket: tgt.TargetBucket, Err: err}
@@ -452,7 +451,7 @@ func (sys *BucketTargetSys) getRemoteTargetClient(tcfg *madmin.BucketTarget) (*T
 	config := tcfg.Credentials
 	creds := credentials.NewStaticV4(config.AccessKey, config.SecretKey, "")
 
-	api, err := minio.New(tcfg.Endpoint, &miniogo.Options{
+	api, err := miniogo.New(tcfg.Endpoint, &miniogo.Options{
 		Creds:     creds,
 		Secure:    tcfg.Secure,
 		Region:    tcfg.Region,

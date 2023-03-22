@@ -1196,7 +1196,7 @@ func (z *erasureServerPools) CopyObject(ctx context.Context, srcBucket, srcObjec
 	return z.serverPools[poolIdx].PutObject(ctx, dstBucket, dstObject, srcInfo.PutObjReader, putOpts)
 }
 
-func (z *erasureServerPools) ListObjectsV2(ctx context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, fetchOwner bool, startAfter string) (ListObjectsV2Info, error) {
+func (z *erasureServerPools) ListObjectsV2(ctx context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, _ /*fetchOwner*/ bool, startAfter string) (ListObjectsV2Info, error) {
 	marker := continuationToken
 	if marker == "" {
 		marker = startAfter
@@ -2190,9 +2190,7 @@ func (z *erasureServerPools) ReadHealth(ctx context.Context) bool {
 
 	b := z.BackendInfo()
 	poolReadQuorums := make([]int, len(b.StandardSCData))
-	for i, data := range b.StandardSCData {
-		poolReadQuorums[i] = data
-	}
+	copy(poolReadQuorums, b.StandardSCData)
 
 	for poolIdx := range erasureSetUpCount {
 		for setIdx := range erasureSetUpCount[poolIdx] {

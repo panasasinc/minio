@@ -199,7 +199,7 @@ func (p *scannerMetrics) activeDisks() int {
 
 // lifetime returns the lifetime count of the specified metric.
 func (p *scannerMetrics) lifetime(m scannerMetric) uint64 {
-	if m < 0 || m >= scannerMetricLast {
+	if m >= scannerMetricLast {
 		return 0
 	}
 	val := atomic.LoadUint64(&p.operations[m])
@@ -209,7 +209,7 @@ func (p *scannerMetrics) lifetime(m scannerMetric) uint64 {
 // lastMinute returns the last minute statistics of a metric.
 // m should be < scannerMetricLastRealtime
 func (p *scannerMetrics) lastMinute(m scannerMetric) AccElem {
-	if m < 0 || m >= scannerMetricLastRealtime {
+	if m >= scannerMetricLastRealtime {
 		return AccElem{}
 	}
 	val := p.latency[m].total()

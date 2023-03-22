@@ -2709,7 +2709,7 @@ func (es *erasureSingle) CompleteMultipartUpload(ctx context.Context, bucket str
 		}
 	}
 
-	var checksumCombined []byte
+	//var checksumCombined []byte
 
 	// However, in case of encryption, the persisted part ETags don't match
 	// what we have sent to the client during PutObjectPart. The reason is
@@ -2797,7 +2797,7 @@ func (es *erasureSingle) CompleteMultipartUpload(ctx context.Context, bucket str
 					PartNumber: part.PartNumber,
 				}
 			}
-			checksumCombined = append(checksumCombined, cs.Raw...)
+			//checksumCombined = append(checksumCombined, cs.Raw...)
 		}
 
 		// All parts except the last part has to be atleast 5MB.

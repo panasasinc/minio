@@ -158,7 +158,7 @@ type nopReadCloser struct {
 	fn func()
 }
 
-func (n2 *nopReadCloser) Read(p []byte) (n int, err error) {
+func (n2 *nopReadCloser) Read(_ []byte) (n int, err error) {
 	panic("should not be called")
 }
 

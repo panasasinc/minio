@@ -34,7 +34,7 @@ import (
 // getLocalServerProperty - returns madmin.ServerProperties for only the
 // local endpoints from given list of endpoints
 func getLocalServerProperty(endpointServerPools EndpointServerPools, r *http.Request) madmin.ServerProperties {
-	var localEndpoints Endpoints
+	// var localEndpoints Endpoints
 	addr := globalLocalNodeName
 	if r != nil {
 		addr = r.Host
@@ -52,7 +52,7 @@ func getLocalServerProperty(endpointServerPools EndpointServerPools, r *http.Req
 			if endpoint.IsLocal {
 				// Only proceed for local endpoints
 				network[nodeName] = string(madmin.ItemOnline)
-				localEndpoints = append(localEndpoints, endpoint)
+				// localEndpoints = append(localEndpoints, endpoint)
 				continue
 			}
 			_, present := network[nodeName]

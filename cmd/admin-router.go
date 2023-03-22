@@ -18,7 +18,6 @@
 package cmd
 
 import (
-	"fmt"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -50,7 +49,7 @@ func adminAPIHostHandler(next http.Handler) http.Handler {
 		} else {
 			writeErrorResponse(r.Context(), w, APIError{
 				Code:           "Forbidden",
-				Description:    fmt.Sprintf("Admin API allowed from localhost only by default"),
+				Description:    "Admin API allowed from localhost only by default",
 				HTTPStatusCode: http.StatusForbidden,
 			}, r.URL)
 		}

@@ -282,7 +282,7 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 // object. Internally incoming data is written to '.minio.sys/tmp' location
 // and safely renamed to '.minio.sys/multipart' for reach parts.
 func (fs *PANFSObjects) CopyObjectPart(ctx context.Context, srcBucket, srcObject, dstBucket, dstObject, uploadID string, partID int,
-	startOffset int64, length int64, srcInfo ObjectInfo, srcOpts, dstOpts ObjectOptions) (pi PartInfo, err error,
+	_, _ /*startOffset, length*/ int64, srcInfo ObjectInfo, srcOpts, dstOpts ObjectOptions) (pi PartInfo, err error,
 ) {
 	if srcOpts.VersionID != "" && srcOpts.VersionID != nullVersionID {
 		return pi, VersionNotFound{

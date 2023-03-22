@@ -111,8 +111,8 @@ func TestCreateBucket(t *testing.T) {
 }
 
 // testCreateBucket - Test for calling Create Bucket and ensure we get one and only one success.
-func testCreateBucket(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
-	credentials auth.Credentials, t *testing.T,
+func testCreateBucket(obj ObjectLayer, _ /*instanceType*/, bucketName string, _ /*apiRouter*/ http.Handler,
+	_ auth.Credentials, t *testing.T,
 ) {
 	bucketName1 := fmt.Sprintf("%s-1", bucketName)
 

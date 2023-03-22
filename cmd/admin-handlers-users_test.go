@@ -35,7 +35,6 @@ import (
 
 	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	cr "github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 	"github.com/minio/minio-go/v7/pkg/set"
@@ -89,7 +88,7 @@ func (s *TestSuiteIAM) iamSetup(c *check) {
 	s.adm.SetCustomTransport(s.TestSuiteCommon.client.Transport)
 
 	s.client, err = minio.New(s.endpoint, &minio.Options{
-		Creds:     credentials.NewStaticV4(s.accessKey, s.secretKey, ""),
+		Creds:     cr.NewStaticV4(s.accessKey, s.secretKey, ""),
 		Secure:    s.secure,
 		Transport: s.TestSuiteCommon.client.Transport,
 	})
@@ -167,7 +166,7 @@ func (s *TestSuiteIAM) RestartIAMSuite(c *check) {
 
 func (s *TestSuiteIAM) getAdminClient(c *check, accessKey, secretKey, sessionToken string) *madmin.AdminClient {
 	madmClnt, err := madmin.NewWithOptions(s.endpoint, &madmin.Options{
-		Creds:  credentials.NewStaticV4(accessKey, secretKey, sessionToken),
+		Creds:  cr.NewStaticV4(accessKey, secretKey, sessionToken),
 		Secure: s.secure,
 	})
 	if err != nil {
@@ -179,7 +178,7 @@ func (s *TestSuiteIAM) getAdminClient(c *check, accessKey, secretKey, sessionTok
 
 func (s *TestSuiteIAM) getUserClient(c *check, accessKey, secretKey, sessionToken string) *minio.Client {
 	client, err := minio.New(s.endpoint, &minio.Options{
-		Creds:     credentials.NewStaticV4(accessKey, secretKey, sessionToken),
+		Creds:     cr.NewStaticV4(accessKey, secretKey, sessionToken),
 		Secure:    s.secure,
 		Transport: s.TestSuiteCommon.client.Transport,
 	})
@@ -825,7 +824,7 @@ func (s *TestSuiteIAM) TestGroupAddRemove(c *check) {
 	if set.CreateStringSet(groups...).Contains(group) {
 		c.Fatalf("created group still present!")
 	}
-	groupInfo, err = s.adm.GetGroupDescription(ctx, group)
+	_ /*groupInfo*/, err = s.adm.GetGroupDescription(ctx, group)
 	if err == nil {
 		c.Fatalf("group appears to exist")
 	}

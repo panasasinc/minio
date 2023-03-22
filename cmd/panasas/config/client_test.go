@@ -1135,7 +1135,7 @@ func TestNetworkedFunctionality(t *testing.T) {
 }
 
 func performURLTest(t *testing.T, pc *Client, expected string, parts ...string) {
-	u, err := pc.getConfigAgentURL("foo", "bar", "baz")
+	u, err := pc.getConfigAgentURL(parts...)
 	if err != nil {
 		t.Fatalf("getPanasasConfigStoreURL() returned error: %s", err)
 	}

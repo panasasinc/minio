@@ -34,7 +34,6 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/minio/madmin-go"
-	"github.com/minio/minio-go/v7"
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/encrypt"
 	"github.com/minio/minio-go/v7/pkg/tags"
@@ -803,7 +802,7 @@ func equals(k1 string, keys ...string) bool {
 }
 
 // returns replicationAction by comparing metadata between source and target
-func getReplicationAction(oi1 ObjectInfo, oi2 minio.ObjectInfo, opType replication.Type) replicationAction {
+func getReplicationAction(oi1 ObjectInfo, oi2 miniogo.ObjectInfo, opType replication.Type) replicationAction {
 	// Avoid resyncing null versions created prior to enabling replication if target has a newer copy
 	if opType == replication.ExistingObjectReplicationType &&
 		oi1.ModTime.Unix() > oi2.LastModified.Unix() && oi1.VersionID == nullVersionID {
@@ -1166,14 +1165,14 @@ func (ri ReplicateObjectInfo) replicateObject(ctx context.Context, objectAPI Obj
 	if objInfo.isMultipart() {
 		if err := replicateObjectWithMultipart(ctx, c, tgt.Bucket, object,
 			r, objInfo, putOpts); err != nil {
-			if minio.ToErrorResponse(err).Code != "PreConditionFailed" {
+			if miniogo.ToErrorResponse(err).Code != "PreConditionFailed" {
 				rinfo.ReplicationStatus = replication.Failed
 				logger.LogIf(ctx, fmt.Errorf("Unable to replicate for object %s/%s(%s): %s", bucket, objInfo.Name, objInfo.VersionID, err))
 			}
 		}
 	} else {
 		if _, err = c.PutObject(ctx, tgt.Bucket, object, r, size, "", "", putOpts); err != nil {
-			if minio.ToErrorResponse(err).Code != "PreConditionFailed" {
+			if miniogo.ToErrorResponse(err).Code != "PreConditionFailed" {
 				rinfo.ReplicationStatus = replication.Failed
 				logger.LogIf(ctx, fmt.Errorf("Unable to replicate for object %s/%s(%s): %s", bucket, objInfo.Name, objInfo.VersionID, err))
 			}
@@ -1335,7 +1334,7 @@ func (ri ReplicateObjectInfo) replicateAll(ctx context.Context, objectAPI Object
 			logger.LogIf(ctx, fmt.Errorf("Unable to replicate metadata for object %s/%s(%s): %s", bucket, objInfo.Name, objInfo.VersionID, err))
 		}
 	} else {
-		var putOpts minio.PutObjectOptions
+		var putOpts miniogo.PutObjectOptions
 		putOpts, err = putReplicationOpts(ctx, tgt.StorageClass, objInfo)
 		if err != nil {
 			logger.LogIf(ctx, fmt.Errorf("failed to get target for replication bucket:%s err:%w", bucket, err))
@@ -1858,7 +1857,7 @@ type proxyResult struct {
 
 // get Reader from replication target if active-active replication is in place and
 // this node returns a 404
-func proxyGetToReplicationTarget(ctx context.Context, bucket, object string, rs *HTTPRangeSpec, h http.Header, opts ObjectOptions, proxyTargets *madmin.BucketTargets) (gr *GetObjectReader, proxy proxyResult, err error) {
+func proxyGetToReplicationTarget(ctx context.Context, bucket, object string, rs *HTTPRangeSpec, _ http.Header, opts ObjectOptions, proxyTargets *madmin.BucketTargets) (gr *GetObjectReader, proxy proxyResult, err error) {
 	tgt, oi, proxy := proxyHeadToRepTarget(ctx, bucket, object, rs, opts, proxyTargets)
 	if !proxy.Proxy {
 		return nil, proxy, nil

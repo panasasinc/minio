@@ -91,7 +91,7 @@ func (kms secretKey) Stat(context.Context) (Status, error) {
 	}, nil
 }
 
-func (secretKey) Metrics(ctx context.Context) (kes.Metric, error) {
+func (secretKey) Metrics(_ context.Context) (kes.Metric, error) {
 	return kes.Metric{}, errors.New("kms: metrics are not supported")
 }
 

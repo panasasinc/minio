@@ -40,7 +40,7 @@ func (target ExampleTarget) Save(eventData Event) error {
 	return target.send(eventData)
 }
 
-func (target ExampleTarget) send(eventData Event) error {
+func (target ExampleTarget) send(_ Event) error {
 	b := make([]byte, 1)
 	if _, err := rand.Read(b); err != nil {
 		panic(err)
@@ -56,7 +56,7 @@ func (target ExampleTarget) send(eventData Event) error {
 }
 
 // Send - interface compatible method does no-op.
-func (target ExampleTarget) Send(eventKey string) error {
+func (target ExampleTarget) Send(_ /*eventKey*/ string) error {
 	return nil
 }
 

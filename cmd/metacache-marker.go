@@ -47,10 +47,10 @@ func (o *listPathOptions) parseMarker() {
 			continue
 		}
 		switch kv[0] {
-		case "minio_cache":
-			if kv[1] != markerTagVersion {
-				break
-			}
+		/*case "minio_cache":
+		if kv[1] != markerTagVersion {
+			break
+		}*/
 		case "id":
 			o.ID = kv[1]
 		case "return":

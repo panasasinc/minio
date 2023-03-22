@@ -48,7 +48,7 @@ type KeycloakProvider struct {
 }
 
 // LoginWithUser authenticates username/password, not needed for Keycloak
-func (k *KeycloakProvider) LoginWithUser(username, password string) error {
+func (k *KeycloakProvider) LoginWithUser(_, _ /*username, password*/ string) error {
 	return ErrNotImplemented
 }
 

@@ -69,7 +69,7 @@ func (w *nullResponseWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (w *nullResponseWriter) WriteHeader(statusCode int) {
+func (w *nullResponseWriter) WriteHeader(_ /*statusCode*/ int) {
 }
 
 func (w *nullResponseWriter) Flush() {

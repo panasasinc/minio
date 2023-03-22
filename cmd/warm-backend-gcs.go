@@ -49,7 +49,7 @@ func (gcs *warmBackendGCS) getDest(object string) string {
 // FIXME: add support for remote version ID in GCS remote tier and remove this.
 // Currently it's a no-op.
 
-func (gcs *warmBackendGCS) Put(ctx context.Context, key string, data io.Reader, length int64) (remoteVersionID, error) {
+func (gcs *warmBackendGCS) Put(ctx context.Context, key string, data io.Reader, _ /*length*/ int64) (remoteVersionID, error) {
 	object := gcs.client.Bucket(gcs.Bucket).Object(gcs.getDest(key))
 	// TODO: set storage class
 	w := object.NewWriter(ctx)
