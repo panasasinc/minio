@@ -757,7 +757,7 @@ func (api objectAPIHandlers) PutBucketHandler(w http.ResponseWriter, r *http.Req
 				writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrPanFSBucketPathNotFound), r.URL)
 				return
 			}
-			panfsBucketPath = panfsPath
+			panfsBucketPath = retainSlash(panfsPath)
 		} else {
 			panfsBucketPath = globalPanFSDefaultBucketPath
 		}
