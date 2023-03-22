@@ -648,18 +648,18 @@ func (j xlMetaV2Object) ToFileInfo(volume, path string) (FileInfo, error) {
 const metaDataReadDefault = 4 << 10
 
 // Return used metadata byte slices here.
-var metaDataPool = sync.Pool{New: func() interface{} { return make([]byte, 0, metaDataReadDefault) }}
+var metaDataPool = sync.Pool{New: func() interface{} { tmp := make([]byte, 0, metaDataReadDefault); return &tmp }}
 
 // metaDataPoolGet will return a byte slice with capacity at least metaDataReadDefault.
 // It will be length 0.
 func metaDataPoolGet() []byte {
-	return metaDataPool.Get().([]byte)[:0]
+	return (*metaDataPool.Get().(*[]byte))[:0]
 }
 
 // metaDataPoolPut will put an unused small buffer back into the pool.
 func metaDataPoolPut(buf []byte) {
 	if cap(buf) >= metaDataReadDefault && cap(buf) < metaDataReadDefault*4 {
-		metaDataPool.Put(buf)
+		metaDataPool.Put(&buf)
 	}
 }
 
@@ -1778,7 +1778,7 @@ func mergeXLV2Versions(quorum int, strict bool, requestedVersions int, versions 
 		if consistent {
 			// All had the same signature, easy.
 			latest = tops[0]
-			//latestCount = len(tops)
+			// latestCount = len(tops)
 			merged = append(merged, latest)
 
 			// Calculate latest 'n' non-free versions.

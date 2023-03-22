@@ -94,21 +94,18 @@ func NewWithConfig(config Config) (KMS, error) {
 		bulkAvailable: bulkAvailable,
 	}
 	go func() {
-		for {
-			select {
-			case certificate := <-config.ReloadCertEvents:
-				client := kes.NewClientWithConfig("", &tls.Config{
-					MinVersion:         tls.VersionTLS12,
-					Certificates:       []tls.Certificate{certificate},
-					RootCAs:            config.RootCAs,
-					ClientSessionCache: tls.NewLRUClientSessionCache(tlsClientSessionCacheSize),
-				})
-				client.Endpoints = endpoints
+		for certificate := range config.ReloadCertEvents {
+			client := kes.NewClientWithConfig("", &tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				Certificates:       []tls.Certificate{certificate},
+				RootCAs:            config.RootCAs,
+				ClientSessionCache: tls.NewLRUClientSessionCache(tlsClientSessionCacheSize),
+			})
+			client.Endpoints = endpoints
 
-				c.lock.Lock()
-				c.client = client
-				c.lock.Unlock()
-			}
+			c.lock.Lock()
+			c.client = client
+			c.lock.Unlock()
 		}
 	}()
 	return c, nil

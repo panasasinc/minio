@@ -70,9 +70,16 @@ func (r *Reader) Read(dst sql.Record) (sql.Record, error) {
 func (r *Reader) Close() error {
 	// Close the input.
 	err := r.readCloser.Close()
-	for range r.valueCh {
+	/*for range r.valueCh {
 		// Drain values so we don't leak a goroutine.
 		// Since we have closed the input, it should fail rather quickly.
+	}*/
+	// Rewritten for linters
+	for {
+		_, ok := <-r.valueCh
+		if !ok {
+			break
+		}
 	}
 	return err
 }

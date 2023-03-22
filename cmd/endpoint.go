@@ -418,7 +418,7 @@ func (endpoints Endpoints) atleastOneEndpointLocal() bool {
 }
 
 // UpdateIsLocal - resolves the host and discovers the local host.
-func (endpoints Endpoints) UpdateIsLocal(foundPrevLocal bool) error {
+func (endpoints Endpoints) UpdateIsLocal(_ /*foundPrevLocal*/ bool) error {
 	orchestrated := IsDocker() || IsKubernetes()
 
 	var epsResolved int

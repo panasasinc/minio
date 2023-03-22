@@ -31,7 +31,7 @@ const (
 	source = "main.go"
 )
 
-func testSimpleWriteLock(t *testing.T, duration time.Duration) (locked bool) {
+func testSimpleWriteLock(_ *testing.T, duration time.Duration) (locked bool) {
 	drwm1 := NewDRWMutex(ds, "simplelock")
 	ctx1, cancel1 := context.WithCancel(context.Background())
 	if !drwm1.GetRLock(ctx1, cancel1, id, source, Options{Timeout: time.Second}) {

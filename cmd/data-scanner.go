@@ -626,12 +626,12 @@ func (f *folderScanner) scanFolder(ctx context.Context, folder cachedFolder, int
 						foundAny = true
 						break
 					}
-					if next := f.updateCache.searchParent(parent); next == nil {
+					next := f.updateCache.searchParent(parent)
+					if next == nil {
 						foundAny = true
 						break
-					} else {
-						parent = *next
 					}
+					parent = *next
 				}
 				if !foundAny {
 					// Add non-compacted empty entry.
@@ -948,7 +948,7 @@ func (i *scannerItem) applyHealing(ctx context.Context, o ObjectLayer, oi Object
 	return res.ObjectSize
 }
 
-func (i *scannerItem) applyLifecycle(ctx context.Context, o ObjectLayer, oi ObjectInfo) (applied bool, size int64) {
+func (i *scannerItem) applyLifecycle(ctx context.Context, _ ObjectLayer, oi ObjectInfo) (applied bool, size int64) {
 	size, err := oi.GetActualSize()
 	if i.debug {
 		logger.LogIf(ctx, err)

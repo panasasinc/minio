@@ -73,7 +73,7 @@ func (az *warmBackendAzure) Put(ctx context.Context, object string, r io.Reader,
 	return remoteVersionID(res.Version()), nil
 }
 
-func (az *warmBackendAzure) Get(ctx context.Context, object string, rv remoteVersionID, opts WarmBackendGetOpts) (r io.ReadCloser, err error) {
+func (az *warmBackendAzure) Get(ctx context.Context, object string, _ remoteVersionID, opts WarmBackendGetOpts) (r io.ReadCloser, err error) {
 	if opts.startOffset < 0 {
 		return nil, InvalidRange{}
 	}

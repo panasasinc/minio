@@ -719,11 +719,9 @@ func verifyGetObject1(t *testing.T) {
 
 	_, _, err := pc.GetObject(objectName)
 
-	if err == ErrNotFound {
-		// OK - as expected
-	} else if err == nil {
+	if err == nil {
 		t.Fatalf("GetObject(%q) succeeded although the object should not exist", objectName)
-	} else {
+	} else if err != ErrNotFound {
 		t.Fatalf("Unexpected error returned from GetObject(%q): %v", objectName, err)
 	}
 }
@@ -746,7 +744,7 @@ func verifyGetObject2(t *testing.T) {
 	namespaceTS2 := time.Now()
 
 	r, oi, err := pc.GetObject(objectName)
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	if err != nil {
 		t.Fatalf("GetObject(%q) returned unexpected error: %v", objectName, err)
@@ -756,7 +754,7 @@ func verifyGetObject2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Reading reader returned by GetObject(%q) returned error: %v", objectName, err)
 	}
-	if bytes.Compare(receivedData, sentData) != 0 {
+	if !bytes.Equal(receivedData, sentData) {
 		t.Fatalf("GetObject(%q) returned incorrect data. Expected %v, got %v", objectName, sentData, receivedData)
 	}
 	if oi.ID != objectName {

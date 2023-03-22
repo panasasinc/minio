@@ -257,7 +257,7 @@ func (fs *FSObjects) NewMultipartUpload(ctx context.Context, bucket, object stri
 // object. Internally incoming data is written to '.minio.sys/tmp' location
 // and safely renamed to '.minio.sys/multipart' for reach parts.
 func (fs *FSObjects) CopyObjectPart(ctx context.Context, srcBucket, srcObject, dstBucket, dstObject, uploadID string, partID int,
-	startOffset int64, length int64, srcInfo ObjectInfo, srcOpts, dstOpts ObjectOptions) (pi PartInfo, e error,
+	_, _ /*startOffset, length*/ int64, srcInfo ObjectInfo, srcOpts, dstOpts ObjectOptions) (pi PartInfo, e error,
 ) {
 	if srcOpts.VersionID != "" && srcOpts.VersionID != nullVersionID {
 		return pi, VersionNotFound{

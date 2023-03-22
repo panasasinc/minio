@@ -265,7 +265,7 @@ func enforceRetentionBypassForPut(ctx context.Context, r *http.Request, oi Objec
 // For objects in "Compliance" mode, retention date cannot be shortened, and mode cannot be altered.
 // For objects with legal hold header set, the s3:PutObjectLegalHold permission is expected to be set
 // Both legal hold and retention can be applied independently on an object
-func checkPutObjectLockAllowed(ctx context.Context, rq *http.Request, bucket, object string, getObjectInfoFn GetObjectInfoFn, retentionPermErr, legalHoldPermErr APIErrorCode) (objectlock.RetMode, objectlock.RetentionDate, objectlock.ObjectLegalHold, APIErrorCode) {
+func checkPutObjectLockAllowed(ctx context.Context, rq *http.Request, bucket, object string, getObjectInfoFn GetObjectInfoFn, retentionPermErr, _ /*legalHoldPermErr*/ APIErrorCode) (objectlock.RetMode, objectlock.RetentionDate, objectlock.ObjectLegalHold, APIErrorCode) {
 	var mode objectlock.RetMode
 	var retainDate objectlock.RetentionDate
 	var legalHold objectlock.ObjectLegalHold

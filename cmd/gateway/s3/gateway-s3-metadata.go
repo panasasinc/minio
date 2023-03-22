@@ -161,7 +161,7 @@ func readGWMetadata(ctx context.Context, buf bytes.Buffer) (gwMeta gwMetaV1, err
 }
 
 // getGWMetadata - unmarshals dare.meta into a *minio.PutObjReader
-func getGWMetadata(ctx context.Context, bucket, prefix string, gwMeta gwMetaV1) (*minio.PutObjReader, error) {
+func getGWMetadata(ctx context.Context, _, _ /*bucket, prefix*/ string, gwMeta gwMetaV1) (*minio.PutObjReader, error) {
 	// Marshal json.
 	metadataBytes, err := json.Marshal(&gwMeta)
 	if err != nil {

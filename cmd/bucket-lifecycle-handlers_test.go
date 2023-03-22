@@ -256,7 +256,7 @@ func testBucketLifecycleHandlers(obj ObjectLayer, instanceType, bucketName strin
 }
 
 // testBucketLifecycle is a generic testing of lifecycle requests
-func testBucketLifecycle(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
+func testBucketLifecycle(_ ObjectLayer, instanceType, _ /*bucketName*/ string, apiRouter http.Handler,
 	t *testing.T, testCases []struct {
 		method             string
 		bucketName         string

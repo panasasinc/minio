@@ -466,7 +466,7 @@ func (er erasureObjects) NewMultipartUpload(ctx context.Context, bucket, object 
 // data is read from an existing object.
 //
 // Implements S3 compatible Upload Part Copy API.
-func (er erasureObjects) CopyObjectPart(ctx context.Context, _, _ /*srcBucket, srcObject,*/, dstBucket, dstObject, uploadID string, partID int, _ /*startOffset*/, length int64, srcInfo ObjectInfo, _ /*srcOpts*/, dstOpts ObjectOptions) (pi PartInfo, e error) {
+func (er erasureObjects) CopyObjectPart(ctx context.Context, _, _ /*srcBucket, srcObject,*/, dstBucket, dstObject, uploadID string, partID int, _, _ /*startOffset, length*/ int64, srcInfo ObjectInfo, _ /*srcOpts*/, dstOpts ObjectOptions) (pi PartInfo, e error) {
 	partInfo, err := er.PutObjectPart(ctx, dstBucket, dstObject, uploadID, partID, NewPutObjReader(srcInfo.Reader), dstOpts)
 	if err != nil {
 		return pi, toObjectErr(err, dstBucket, dstObject)

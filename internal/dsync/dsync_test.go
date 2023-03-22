@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestSimpleLock(t *testing.T) {
+func TestSimpleLock(_ *testing.T) {
 	dm := NewDRWMutex(ds, "test")
 
 	dm.Lock(id, source)

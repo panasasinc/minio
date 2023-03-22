@@ -120,27 +120,27 @@ func (restClient *ReconnectRESTClient) Call(method string, args LockArgs) (statu
 	}
 }
 
-func (restClient *ReconnectRESTClient) RLock(ctx context.Context, args LockArgs) (status bool, err error) {
+func (restClient *ReconnectRESTClient) RLock(_ context.Context, args LockArgs) (status bool, err error) {
 	return restClient.Call("/v1/rlock", args)
 }
 
-func (restClient *ReconnectRESTClient) Lock(ctx context.Context, args LockArgs) (status bool, err error) {
+func (restClient *ReconnectRESTClient) Lock(_ context.Context, args LockArgs) (status bool, err error) {
 	return restClient.Call("/v1/lock", args)
 }
 
-func (restClient *ReconnectRESTClient) RUnlock(ctx context.Context, args LockArgs) (status bool, err error) {
+func (restClient *ReconnectRESTClient) RUnlock(_ context.Context, args LockArgs) (status bool, err error) {
 	return restClient.Call("/v1/runlock", args)
 }
 
-func (restClient *ReconnectRESTClient) Unlock(ctx context.Context, args LockArgs) (status bool, err error) {
+func (restClient *ReconnectRESTClient) Unlock(_ context.Context, args LockArgs) (status bool, err error) {
 	return restClient.Call("/v1/unlock", args)
 }
 
-func (restClient *ReconnectRESTClient) Refresh(ctx context.Context, args LockArgs) (refreshed bool, err error) {
+func (restClient *ReconnectRESTClient) Refresh(_ context.Context, args LockArgs) (refreshed bool, err error) {
 	return restClient.Call("/v1/refresh", args)
 }
 
-func (restClient *ReconnectRESTClient) ForceUnlock(ctx context.Context, args LockArgs) (reply bool, err error) {
+func (restClient *ReconnectRESTClient) ForceUnlock(_ context.Context, args LockArgs) (reply bool, err error) {
 	return restClient.Call("/v1/force-unlock", args)
 }
 

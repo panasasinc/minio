@@ -149,7 +149,7 @@ func (c *OperatorDNS) Delete(bucket string) error {
 
 // DeleteRecord - Removes a specific DNS entry
 // No Op for Operator because operator deals on with bucket entries
-func (c *OperatorDNS) DeleteRecord(record SrvRecord) error {
+func (c *OperatorDNS) DeleteRecord(_ SrvRecord) error {
 	return ErrNotImplemented
 }
 
@@ -162,7 +162,7 @@ func (c *OperatorDNS) Close() error {
 // This is a No Op for Operator because, there is no intent to enforce global
 // namespace at MinIO level with this DNS entry. The global namespace in
 // enforced by the Kubernetes Operator
-func (c *OperatorDNS) List() (srvRecords map[string][]SrvRecord, err error) {
+func (c *OperatorDNS) List() (_ map[string][]SrvRecord, err error) {
 	return nil, ErrNotImplemented
 }
 
@@ -170,7 +170,7 @@ func (c *OperatorDNS) List() (srvRecords map[string][]SrvRecord, err error) {
 // This is a No Op for Operator because, there is no intent to enforce global
 // namespace at MinIO level with this DNS entry. The global namespace in
 // enforced by the Kubernetes Operator
-func (c *OperatorDNS) Get(bucket string) (srvRecords []SrvRecord, err error) {
+func (c *OperatorDNS) Get(bucket string) (_ []SrvRecord, err error) {
 	return nil, ErrNotImplemented
 }
 

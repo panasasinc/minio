@@ -348,7 +348,7 @@ func (l *s3Objects) MakeBucketWithLocation(ctx context.Context, bucket string, o
 }
 
 // GetBucketInfo gets bucket metadata..
-func (l *s3Objects) GetBucketInfo(ctx context.Context, bucket string, opts minio.BucketOptions) (bi minio.BucketInfo, e error) {
+func (l *s3Objects) GetBucketInfo(ctx context.Context, bucket string, _ minio.BucketOptions) (bi minio.BucketInfo, e error) {
 	buckets, err := l.Client.ListBuckets(ctx)
 	if err != nil {
 		// Listbuckets may be disallowed, proceed to check if
@@ -381,7 +381,7 @@ func (l *s3Objects) GetBucketInfo(ctx context.Context, bucket string, opts minio
 }
 
 // ListBuckets lists all S3 buckets
-func (l *s3Objects) ListBuckets(ctx context.Context, opts minio.BucketOptions) ([]minio.BucketInfo, error) {
+func (l *s3Objects) ListBuckets(ctx context.Context, _ minio.BucketOptions) ([]minio.BucketInfo, error) {
 	buckets, err := l.Client.ListBuckets(ctx)
 	if err != nil {
 		return nil, minio.ErrorRespToObjectError(err)
@@ -399,7 +399,7 @@ func (l *s3Objects) ListBuckets(ctx context.Context, opts minio.BucketOptions) (
 }
 
 // DeleteBucket deletes a bucket on S3
-func (l *s3Objects) DeleteBucket(ctx context.Context, bucket string, opts minio.DeleteBucketOptions) error {
+func (l *s3Objects) DeleteBucket(ctx context.Context, bucket string, _ minio.DeleteBucketOptions) error {
 	err := l.Client.RemoveBucket(ctx, bucket)
 	if err != nil {
 		return minio.ErrorRespToObjectError(err, bucket)
@@ -428,7 +428,7 @@ func (l *s3Objects) ListObjectsV2(ctx context.Context, bucket, prefix, continuat
 }
 
 // GetObjectNInfo - returns object info and locked object ReadCloser
-func (l *s3Objects) GetObjectNInfo(ctx context.Context, bucket, object string, rs *minio.HTTPRangeSpec, h http.Header, lockType minio.LockType, opts minio.ObjectOptions) (gr *minio.GetObjectReader, err error) {
+func (l *s3Objects) GetObjectNInfo(ctx context.Context, bucket, object string, rs *minio.HTTPRangeSpec, h http.Header, _ minio.LockType, opts minio.ObjectOptions) (gr *minio.GetObjectReader, err error) {
 	var objInfo minio.ObjectInfo
 	objInfo, err = l.GetObjectInfo(ctx, bucket, object, opts)
 	if err != nil {

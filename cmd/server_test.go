@@ -182,7 +182,7 @@ func (s *TestSuiteCommon) RestartTestServer(c *check) {
 	s.endPoint = s.testServer.Server.URL
 }
 
-func (s *TestSuiteCommon) TearDownSuite(c *check) {
+func (s *TestSuiteCommon) TearDownSuite(_ *check) {
 	s.testServer.Stop()
 }
 

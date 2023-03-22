@@ -87,7 +87,7 @@ func (g *PANFS) Name() string {
 }
 
 // NewGatewayLayer returns panfs gatewaylayer.
-func (g *PANFS) NewGatewayLayer(creds madmin.Credentials) (minio.ObjectLayer, error) {
+func (g *PANFS) NewGatewayLayer(_ madmin.Credentials) (minio.ObjectLayer, error) {
 	var err error
 	newObject, err := minio.NewPANFSObjectLayer(minio.GlobalContext, g.path)
 	if err != nil {

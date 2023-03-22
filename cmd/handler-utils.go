@@ -396,7 +396,7 @@ func extractAPIVersion(r *http.Request) string {
 	return "unknown"
 }
 
-func methodNotAllowedHandler(api string) func(w http.ResponseWriter, r *http.Request) {
+func methodNotAllowedHandler(_ string) func(w http.ResponseWriter, r *http.Request) {
 	return errorResponseHandler
 }
 

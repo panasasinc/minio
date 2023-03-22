@@ -505,7 +505,7 @@ func downloadBinary(u *url.URL, mode string) (readerReturn []byte, err error) {
 	return binaryFile, nil
 }
 
-func verifyBinary(u *url.URL, sha256Sum []byte, releaseInfo string, mode string, reader []byte) (err error) {
+func verifyBinary(u *url.URL, sha256Sum []byte, releaseInfo string, _ /*mode*/ string, reader []byte) error {
 	if !atomic.CompareAndSwapUint32(&updateInProgress, 0, 1) {
 		return errors.New("update already in progress")
 	}
@@ -529,7 +529,7 @@ func verifyBinary(u *url.URL, sha256Sum []byte, releaseInfo string, mode string,
 	if minisignPubkey != "" {
 		v := selfupdate.NewVerifier()
 		u.Path = path.Dir(u.Path) + slashSeparator + releaseInfo + ".minisig"
-		if err = v.LoadFromURL(u.String(), minisignPubkey, transport); err != nil {
+		if err := v.LoadFromURL(u.String(), minisignPubkey, transport); err != nil {
 			return AdminError{
 				Code:       AdminUpdateApplyFailure,
 				Message:    fmt.Sprintf("signature loading failed for %v with %v", u, err),
@@ -539,7 +539,7 @@ func verifyBinary(u *url.URL, sha256Sum []byte, releaseInfo string, mode string,
 		opts.Verifier = v
 	}
 
-	if err = selfupdate.PrepareAndCheckBinary(bytes.NewReader(reader), opts); err != nil {
+	if err := selfupdate.PrepareAndCheckBinary(bytes.NewReader(reader), opts); err != nil {
 		var pathErr *os.PathError
 		if errors.As(err, &pathErr) {
 			return AdminError{

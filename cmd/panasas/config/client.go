@@ -443,7 +443,7 @@ func (c *Client) GetObjectLock(objectName string, read bool) (lockID string, err
 
 	req.Method = http.MethodPost
 
-	if read != false {
+	if read {
 		q := req.URL.Query()
 		q.Add("type", "read")
 

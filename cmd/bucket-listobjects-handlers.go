@@ -35,7 +35,7 @@ import (
 //   - delimiter if set should be equal to '/', otherwise the request is rejected.
 //   - marker if set should have a common prefix with 'prefix' param, otherwise
 //     the request is rejected.
-func validateListObjectsArgs(marker, delimiter, encodingType string, maxKeys int) APIErrorCode {
+func validateListObjectsArgs(_, _ /*marker, delimiter*/, encodingType string, maxKeys int) APIErrorCode {
 	// Max keys cannot be negative.
 	if maxKeys < 0 {
 		return ErrInvalidMaxKeys

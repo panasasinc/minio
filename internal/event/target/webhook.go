@@ -280,7 +280,7 @@ func (target *WebhookTarget) initWebhook() error {
 }
 
 // NewWebhookTarget - creates new Webhook target.
-func NewWebhookTarget(ctx context.Context, id string, args WebhookArgs, loggerOnce logger.LogOnce, transport *http.Transport) (*WebhookTarget, error) {
+func NewWebhookTarget(_ context.Context, id string, args WebhookArgs, loggerOnce logger.LogOnce, transport *http.Transport) (*WebhookTarget, error) {
 	var store Store
 	if args.QueueDir != "" {
 		queueDir := filepath.Join(args.QueueDir, storePrefix+"-webhook-"+id)

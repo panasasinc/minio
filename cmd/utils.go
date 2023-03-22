@@ -141,7 +141,7 @@ const (
 
 // nopCharsetConverter is a dummy charset convert which just copies input to output,
 // it is used to ignore custom encoding charset in S3 XML body.
-func nopCharsetConverter(label string, input io.Reader) (io.Reader, error) {
+func nopCharsetConverter(_ /*label*/ string, input io.Reader) (io.Reader, error) {
 	return input, nil
 }
 

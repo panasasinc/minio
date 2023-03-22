@@ -148,7 +148,7 @@ func (o *ObjectOptions) VersionPurgeStatus() VersionPurgeStatusType {
 }
 
 // SetDeleteReplicationState sets the delete replication options.
-func (o *ObjectOptions) SetDeleteReplicationState(dsc ReplicateDecision, vID string) {
+func (o *ObjectOptions) SetDeleteReplicationState(dsc ReplicateDecision, _ /*vID*/ string) {
 	o.DeleteReplication = ReplicationState{
 		ReplicateDecisionStr: dsc.String(),
 	}

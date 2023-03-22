@@ -116,7 +116,7 @@ const (
 // storage, it is removed from in-memory maps as well - this
 // simplifies the implementation for group removal. This is called
 // only via IAM notifications.
-func (sys *IAMSys) LoadGroup(ctx context.Context, objAPI ObjectLayer, group string) error {
+func (sys *IAMSys) LoadGroup(ctx context.Context, _ ObjectLayer, group string) error {
 	if !sys.Initialized() {
 		return errServerNotInitialized
 	}

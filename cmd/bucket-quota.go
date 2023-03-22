@@ -81,7 +81,7 @@ func (sys *BucketQuotaSys) GetBucketUsageInfo(bucket string) (BucketUsageInfo, e
 }
 
 // parseBucketQuota parses BucketQuota from json
-func parseBucketQuota(bucket string, data []byte) (quotaCfg *madmin.BucketQuota, err error) {
+func parseBucketQuota(_ /*bucket*/ string, data []byte) (quotaCfg *madmin.BucketQuota, err error) {
 	quotaCfg = &madmin.BucketQuota{}
 	if err = json.Unmarshal(data, quotaCfg); err != nil {
 		return quotaCfg, err

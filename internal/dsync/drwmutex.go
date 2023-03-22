@@ -311,7 +311,7 @@ type refreshResult struct {
 
 // Refresh the given lock in all nodes, return true to indicate if a lock
 // does not exist in enough quorum nodes.
-func refreshLock(ctx context.Context, ds *Dsync, id, source string, quorum int) (bool, error) {
+func refreshLock(ctx context.Context, ds *Dsync, id, _ string, quorum int) (bool, error) {
 	restClnts, _ := ds.GetLockers()
 
 	// Create buffered channel of size equal to total number of nodes.

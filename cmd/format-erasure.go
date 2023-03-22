@@ -479,7 +479,7 @@ func formatErasureGetDeploymentID(refFormat *formatErasureV3, formats []*formatE
 }
 
 // formatErasureFixDeploymentID - Add deployment id if it is not present.
-func formatErasureFixDeploymentID(endpoints Endpoints, storageDisks []StorageAPI, refFormat *formatErasureV3) (err error) {
+func formatErasureFixDeploymentID(_ Endpoints, storageDisks []StorageAPI, refFormat *formatErasureV3) (err error) {
 	// Attempt to load all `format.json` from all disks.
 	formats, _ := loadFormatErasureAll(storageDisks, false)
 	for index := range formats {

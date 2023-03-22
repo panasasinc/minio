@@ -129,7 +129,7 @@ func (lh *lockServerHandler) RUnlockHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (lh *lockServerHandler) HealthHandler(w http.ResponseWriter, r *http.Request) {}
+func (lh *lockServerHandler) HealthHandler(_ http.ResponseWriter, _ *http.Request) {}
 
 func (lh *lockServerHandler) RLockHandler(w http.ResponseWriter, r *http.Request) {
 	args, err := getLockArgs(r)
@@ -277,7 +277,7 @@ func (l *lockServer) RUnlock(args *LockArgs) (reply bool, err error) {
 	return reply, nil
 }
 
-func (l *lockServer) Refresh(args *LockArgs) (reply bool, err error) {
+func (l *lockServer) Refresh(_ *LockArgs) (reply bool, err error) {
 	if d := atomic.LoadInt64(&l.responseDelay); d != 0 {
 		time.Sleep(time.Duration(d))
 	}

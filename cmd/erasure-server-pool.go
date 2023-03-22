@@ -1415,7 +1415,7 @@ func (z *erasureServerPools) NewMultipartUpload(ctx context.Context, bucket, obj
 }
 
 // Copies a part of an object from source hashedSet to destination hashedSet.
-func (z *erasureServerPools) CopyObjectPart(ctx context.Context, srcBucket, srcObject, destBucket, destObject string, uploadID string, partID int, startOffset int64, length int64, srcInfo ObjectInfo, srcOpts, dstOpts ObjectOptions) (PartInfo, error) {
+func (z *erasureServerPools) CopyObjectPart(ctx context.Context, srcBucket, srcObject, destBucket, destObject, uploadID string, partID int, _, _ /*startOffset, length*/ int64, srcInfo ObjectInfo, _ /*srcOpts*/, dstOpts ObjectOptions) (PartInfo, error) {
 	if err := checkNewMultipartArgs(ctx, srcBucket, srcObject, z); err != nil {
 		return PartInfo{}, err
 	}

@@ -180,8 +180,7 @@ func reader(rwm *LRWMutex, numIterations int, activity *int32, cdone chan bool) 
 			if n < 1 || n >= 10000 {
 				panic(fmt.Sprintf("wlock(%d)\n", n))
 			}
-			for i := 0; i < 100; i++ {
-			}
+			time.Sleep(time.Nanosecond * 20)
 			atomic.AddInt32(activity, -1)
 			rwm.RUnlock()
 		}
@@ -228,7 +227,7 @@ func HammerRWMutex(gomaxprocs, numReaders, numIterations int) {
 }
 
 // Borrowed from rwmutex_test.go
-func TestRWMutex(t *testing.T) {
+func TestRWMutex(_ *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
 	n := 1000
 	if testing.Short() {
