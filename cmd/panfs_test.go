@@ -350,33 +350,46 @@ func TestPANFSMakeBucket(t *testing.T) {
 
 	fs := obj.(*PANFSObjects)
 
-	// Create bucket 1
-	bucketpath1 := pathJoin(disk, bucketName)
-	if err := fsMkdir(GlobalContext, bucketpath1); err != nil {
+	// Create bucket using non-existent panfs path
+	nonExistentBucketPath := pathJoin(disk, "nonExistentBucketPath")
+	err := fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: nonExistentBucketPath})
+	if !errors.Is(err, errDiskAccessDenied) {
+		t.Fatalf("Expected error %v, got %v", errDiskAccessDenied, err)
+	}
+
+	// Valid case
+	bucketPath := pathJoin(disk, bucketName)
+	if err := fsMkdir(GlobalContext, bucketPath); err != nil {
 		t.Fatal("Unexpected error: ", err)
 	}
-	if err := fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: bucketpath1}); err != nil {
+	if err := fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: bucketPath}); err != nil {
 		t.Fatal("Unexpected error: ", err)
 	}
 
-	// Attempt to create bucket with the same name bit different panfs path
-	bucketPanfsPath := pathJoin(disk, nextSuffix())
-	if err := fsMkdir(GlobalContext, bucketPanfsPath); err != nil {
+	// Attempt to create another bucket with the same panfs path
+	err = fs.MakeBucketWithLocation(GlobalContext, getRandomBucketName(), MakeBucketOptions{PanFSBucketPath: bucketPath})
+	if !errors.Is(err, PanFSInvalidBucketPath{BucketPath: bucketPath}) {
+		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: bucketPath}, err)
+	}
+
+	// Attempt to create bucket with the same name but different panfs path
+	anotherPanfsPath := pathJoin(disk, nextSuffix())
+	if err := fsMkdir(GlobalContext, anotherPanfsPath); err != nil {
 		t.Fatal("Unexpected error: ", err)
 	}
-	err := fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: bucketpath1})
+	err = fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: anotherPanfsPath})
 	if !errors.Is(err, BucketExists{Bucket: bucketName}) {
 		t.Fatalf("Expected error %v, got %v", BucketExists{Bucket: bucketName}, err)
 	}
 
-	// Attempt to create bucket 2 inside bucket 1
-	bucket1InnerPath := pathJoin(bucketpath1, "innerDir")
-	if err := fsMkdir(GlobalContext, bucket1InnerPath); err != nil {
+	// Attempt to create another bucket inside previously created bucket
+	innerBucketPath := pathJoin(bucketPath, "innerDir")
+	if err := fsMkdir(GlobalContext, innerBucketPath); err != nil {
 		t.Fatal("Unexpected error: ", err)
 	}
-	err = fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: bucket1InnerPath})
-	if errors.Is(err, PanFSInvalidBucketPath{BucketPath: bucket1InnerPath}) {
-		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: bucket1InnerPath}, err)
+	err = fs.MakeBucketWithLocation(GlobalContext, getRandomBucketName(), MakeBucketOptions{PanFSBucketPath: innerBucketPath})
+	if !errors.Is(err, PanFSInvalidBucketPath{BucketPath: innerBucketPath}) {
+		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: innerBucketPath}, err)
 	}
 
 	// Attempt to create a bucket on the top level of the existing one
