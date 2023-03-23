@@ -429,7 +429,7 @@ func (fs *FSObjects) scanBucket(ctx context.Context, bucket string, cache dataUs
 // getBucketDir - will convert incoming bucket names to
 // corresponding valid bucket names on the backend in a platform
 // compatible way for all operating systems.
-func (fs *FSObjects) getBucketDir(ctx context.Context, bucket string) (string, error) {
+func (fs *FSObjects) getBucketDir(_ context.Context, bucket string) (string, error) {
 	if bucket == "" || bucket == "." || bucket == ".." {
 		return "", errVolumeNotFound
 	}

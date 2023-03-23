@@ -223,7 +223,7 @@ func prepareErasure16(ctx context.Context) (ObjectLayer, []string, error) {
 	return prepareErasure(ctx, 16)
 }
 
-func preparePanFS(ctx context.Context) (obj ObjectLayer, fs string, err error) {
+func preparePanFS(_ context.Context) (obj ObjectLayer, fs string, err error) {
 	fs = filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
 
 	obj, err = initPanFSObjects(fs)
@@ -1905,63 +1905,60 @@ type objTestDiskNotFoundType func(obj ObjectLayer, instanceType string, dirs []s
 // ExecObjectLayerTest - executes object layer tests.
 // Creates single node and Erasure ObjectLayer instance and runs test for both the layers.
 func ExecObjectLayerTest(t TestErrHandler, objTest objTestType) {
-	{
-		ctx, cancel := context.WithCancel(context.Background())
-		if localMetacacheMgr != nil {
-			localMetacacheMgr.deleteAll()
-		}
 
-		objLayer, fsDir, err := prepareFS(ctx)
-		if err != nil {
-			t.Fatalf("Initialization of object layer failed for single node setup: %s", err)
-		}
-		setObjectLayer(objLayer)
-		initAllSubsystems(ctx)
-
-		// initialize the server and obtain the credentials and root.
-		// credentials are necessary to sign the HTTP request.
-		if err = newTestConfig(globalMinioDefaultRegion, objLayer); err != nil {
-			t.Fatal("Unexpected error", err)
-		}
-		initConfigSubsystem(ctx, objLayer)
-		globalIAMSys.Init(ctx, objLayer, globalEtcdClient, 2*time.Second)
-
-		// Executing the object layer tests for single node setup.
-		objTest(objLayer, ErasureSDStr, t)
-
-		// Call clean up functions
-		cancel()
-		setObjectLayer(newObjectLayerFn())
-		removeRoots([]string{fsDir})
+	ctx, cancel := context.WithCancel(context.Background())
+	if localMetacacheMgr != nil {
+		localMetacacheMgr.deleteAll()
 	}
 
-	{
-		ctx, cancel := context.WithCancel(context.Background())
-
-		if localMetacacheMgr != nil {
-			localMetacacheMgr.deleteAll()
-		}
-
-		initAllSubsystems(ctx)
-		objLayer, fsDirs, err := prepareErasureSets32(ctx)
-		if err != nil {
-			t.Fatalf("Initialization of object layer failed for Erasure setup: %s", err)
-		}
-		setObjectLayer(objLayer)
-		initConfigSubsystem(ctx, objLayer)
-		globalIAMSys.Init(ctx, objLayer, globalEtcdClient, 2*time.Second)
-
-		// Executing the object layer tests for Erasure.
-		objTest(objLayer, ErasureTestStr, t)
-
-		objLayer.Shutdown(context.Background())
-		if localMetacacheMgr != nil {
-			localMetacacheMgr.deleteAll()
-		}
-		setObjectLayer(newObjectLayerFn())
-		cancel()
-		removeRoots(fsDirs)
+	objLayer, fsDir, err := prepareFS(ctx)
+	if err != nil {
+		t.Fatalf("Initialization of object layer failed for single node setup: %s", err)
 	}
+	setObjectLayer(objLayer)
+	initAllSubsystems(ctx)
+
+	// initialize the server and obtain the credentials and root.
+	// credentials are necessary to sign the HTTP request.
+	if err = newTestConfig(globalMinioDefaultRegion, objLayer); err != nil {
+		t.Fatal("Unexpected error", err)
+	}
+	initConfigSubsystem(ctx, objLayer)
+	globalIAMSys.Init(ctx, objLayer, globalEtcdClient, 2*time.Second)
+
+	// Executing the object layer tests for single node setup.
+	objTest(objLayer, ErasureSDStr, t)
+
+	// Call clean up functions
+	cancel()
+	setObjectLayer(newObjectLayerFn())
+	removeRoots([]string{fsDir})
+
+	ctx, cancel = context.WithCancel(context.Background())
+
+	if localMetacacheMgr != nil {
+		localMetacacheMgr.deleteAll()
+	}
+
+	initAllSubsystems(ctx)
+	objLayer, fsDirs, err := prepareErasureSets32(ctx)
+	if err != nil {
+		t.Fatalf("Initialization of object layer failed for Erasure setup: %s", err)
+	}
+	setObjectLayer(objLayer)
+	initConfigSubsystem(ctx, objLayer)
+	globalIAMSys.Init(ctx, objLayer, globalEtcdClient, 2*time.Second)
+
+	// Executing the object layer tests for Erasure.
+	objTest(objLayer, ErasureTestStr, t)
+
+	objLayer.Shutdown(context.Background())
+	if localMetacacheMgr != nil {
+		localMetacacheMgr.deleteAll()
+	}
+	setObjectLayer(newObjectLayerFn())
+	cancel()
+	removeRoots(fsDirs)
 }
 
 // ExecObjectLayerTestWithDirs - executes object layer tests.
