@@ -462,7 +462,7 @@ func getHostName(r *http.Request) (hostName string) {
 }
 
 // Proxy any request to an endpoint.
-func proxyRequest(ctx context.Context, w http.ResponseWriter, r *http.Request, ep ProxyEndpoint) (success bool) {
+func proxyRequest(_ context.Context, w http.ResponseWriter, r *http.Request, ep ProxyEndpoint) (success bool) {
 	success = true
 
 	// Make sure we remove any existing headers before

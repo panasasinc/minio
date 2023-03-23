@@ -584,7 +584,7 @@ func (fs *PANFSObjects) DeleteBucketPolicy(ctx context.Context, bucket string) e
 }
 
 // GetBucketInfo - fetch bucket metadata info.
-func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, opts BucketOptions) (bi BucketInfo, e error) {
+func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, _ BucketOptions) (bi BucketInfo, e error) {
 	// We still have global metabucket here so we need to know whether the target bucket is minio metabucket or not.
 	// There are several calls of GetBucketInfo with `.minio.sys` bucket at the initialization time.
 	// See: listIAMConfigItems.go:listIAMConfigItems
@@ -608,7 +608,7 @@ func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, opts B
 }
 
 // ListBuckets - list all s3 compatible buckets (directories) at fsPath.
-func (fs *PANFSObjects) ListBuckets(ctx context.Context, opts BucketOptions) ([]BucketInfo, error) {
+func (fs *PANFSObjects) ListBuckets(ctx context.Context, _ BucketOptions) ([]BucketInfo, error) {
 	if err := checkPathLength(fs.fsPath); err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err
@@ -1203,7 +1203,7 @@ func (fs *PANFSObjects) PutObject(ctx context.Context, bucket string, object str
 // version of that function should never handle metabucket operations (bucket config, user creation etc). At the moment
 // configs will be stored on the global minio metabucket but the object metadata is moved to the new location - relative
 // to the bucket directory
-func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, retErr error) {
+func (fs *PANFSObjects) putObject(ctx context.Context, bucket, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, retErr error) {
 	data := r.Reader
 
 	// No metadata is set, allocate a new one.
@@ -1565,7 +1565,7 @@ func (fs *PANFSObjects) isObjectDir(bucket, prefix string) bool {
 }
 
 // ListObjectVersions not implemented for FS mode.
-func (fs *PANFSObjects) ListObjectVersions(ctx context.Context, bucket, prefix, marker, versionMarker, delimiter string, maxKeys int) (loi ListObjectVersionsInfo, e error) {
+func (fs *PANFSObjects) ListObjectVersions(_ context.Context, _, _, _, _, _ /*bucket, prefix, marker, versionMarker, delimiter*/ string, _ /*maxKeys*/ int) (loi ListObjectVersionsInfo, e error) {
 	return loi, NotImplemented{}
 }
 
@@ -1671,19 +1671,19 @@ func (fs *PANFSObjects) DeleteObjectTags(ctx context.Context, bucket, object str
 }
 
 // HealFormat - no-op for fs, Valid only for Erasure.
-func (fs *PANFSObjects) HealFormat(ctx context.Context, dryRun bool) (madmin.HealResultItem, error) {
+func (fs *PANFSObjects) HealFormat(_ context.Context, _ /*dryRun*/ bool) (madmin.HealResultItem, error) {
 	return madmin.HealResultItem{}, NotImplemented{}
 }
 
 // HealObject - no-op for fs. Valid only for Erasure.
-func (fs *PANFSObjects) HealObject(ctx context.Context, bucket, object, versionID string, opts madmin.HealOpts) (
+func (fs *PANFSObjects) HealObject(_ context.Context, _, _, _ /*bucket, object, versionID*/ string, _ madmin.HealOpts) (
 	res madmin.HealResultItem, err error,
 ) {
 	return res, NotImplemented{}
 }
 
 // HealBucket - no-op for fs, Valid only for Erasure.
-func (fs *PANFSObjects) HealBucket(ctx context.Context, bucket string, opts madmin.HealOpts) (madmin.HealResultItem,
+func (fs *PANFSObjects) HealBucket(_ context.Context, _ /*bucket*/ string, _ madmin.HealOpts) (madmin.HealResultItem,
 	error,
 ) {
 	return madmin.HealResultItem{}, NotImplemented{}
@@ -1694,12 +1694,12 @@ func (fs *PANFSObjects) HealBucket(ctx context.Context, bucket string, opts madm
 // to allocate a receive channel for ObjectInfo, upon any unhandled
 // error walker returns error. Optionally if context.Done() is received
 // then Walk() stops the walker.
-func (fs *PANFSObjects) Walk(ctx context.Context, bucket, prefix string, results chan<- ObjectInfo, opts ObjectOptions) error {
+func (fs *PANFSObjects) Walk(ctx context.Context, bucket, prefix string, results chan<- ObjectInfo, _ ObjectOptions) error {
 	return fsWalk(ctx, fs, bucket, prefix, fs.listDirFactory(), fs.isLeaf, fs.isLeafDir, results, fs.getObjectInfoNoFSLock, fs.getObjectInfoNoFSLock)
 }
 
 // HealObjects - no-op for fs. Valid only for Erasure.
-func (fs *PANFSObjects) HealObjects(ctx context.Context, bucket, prefix string, opts madmin.HealOpts, fn HealObjectFn) (e error) {
+func (fs *PANFSObjects) HealObjects(ctx context.Context, _, _ /*bucket, prefix*/ string, _ madmin.HealOpts, _ HealObjectFn) (e error) {
 	logger.LogIf(ctx, NotImplemented{})
 	return NotImplemented{}
 }
@@ -1758,7 +1758,7 @@ func (fs *PANFSObjects) IsTaggingSupported() bool {
 }
 
 // Health returns health of the object layer
-func (fs *PANFSObjects) Health(ctx context.Context, opts HealthOptions) HealthResult {
+func (fs *PANFSObjects) Health(_ context.Context, _ HealthOptions) HealthResult {
 	if _, err := os.Stat(fs.fsPath); err != nil {
 		return HealthResult{}
 	}
@@ -1768,18 +1768,18 @@ func (fs *PANFSObjects) Health(ctx context.Context, opts HealthOptions) HealthRe
 }
 
 // ReadHealth returns "read" health of the object layer
-func (fs *PANFSObjects) ReadHealth(ctx context.Context) bool {
+func (fs *PANFSObjects) ReadHealth(_ context.Context) bool {
 	_, err := os.Stat(fs.fsPath)
 	return err == nil
 }
 
 // TransitionObject - transition object content to target tier.
-func (fs *PANFSObjects) TransitionObject(ctx context.Context, bucket, object string, opts ObjectOptions) error {
+func (fs *PANFSObjects) TransitionObject(_ context.Context, _, _ /*bucket, object*/ string, _ ObjectOptions) error {
 	return NotImplemented{}
 }
 
 // RestoreTransitionedObject - restore transitioned object content locally on this cluster.
-func (fs *PANFSObjects) RestoreTransitionedObject(ctx context.Context, bucket, object string, opts ObjectOptions) error {
+func (fs *PANFSObjects) RestoreTransitionedObject(_ context.Context, _, _ /*bucket, object*/ string, _ ObjectOptions) error {
 	return NotImplemented{}
 }
 

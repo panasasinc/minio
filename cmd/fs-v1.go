@@ -221,7 +221,7 @@ func (fs *FSObjects) LocalStorageInfo(ctx context.Context) (StorageInfo, []error
 }
 
 // StorageInfo - returns underlying storage statistics.
-func (fs *FSObjects) StorageInfo(ctx context.Context) (StorageInfo, []error) {
+func (fs *FSObjects) StorageInfo(_ context.Context) (StorageInfo, []error) {
 	di, err := getDiskInfo(fs.fsPath)
 	if err != nil {
 		return StorageInfo{}, []error{err}
@@ -522,7 +522,7 @@ func (fs *FSObjects) DeleteBucketPolicy(ctx context.Context, bucket string) erro
 }
 
 // GetBucketInfo - fetch bucket metadata info.
-func (fs *FSObjects) GetBucketInfo(ctx context.Context, bucket string, opts BucketOptions) (bi BucketInfo, e error) {
+func (fs *FSObjects) GetBucketInfo(ctx context.Context, bucket string, _ BucketOptions) (bi BucketInfo, e error) {
 	st, err := fs.statBucketDir(ctx, bucket)
 	if err != nil {
 		return bi, toObjectErr(err, bucket)
@@ -541,7 +541,7 @@ func (fs *FSObjects) GetBucketInfo(ctx context.Context, bucket string, opts Buck
 }
 
 // ListBuckets - list all s3 compatible buckets (directories) at fsPath.
-func (fs *FSObjects) ListBuckets(ctx context.Context, opts BucketOptions) ([]BucketInfo, error) {
+func (fs *FSObjects) ListBuckets(ctx context.Context, _ BucketOptions) ([]BucketInfo, error) {
 	if err := checkPathLength(fs.fsPath); err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err
@@ -1012,7 +1012,7 @@ func (fs *FSObjects) GetObjectInfo(ctx context.Context, bucket, object string, o
 // until EOF, writes data directly to configured filesystem path.
 // Additionally writes `fs.json` which carries the necessary metadata
 // for future object operations.
-func (fs *FSObjects) PutObject(ctx context.Context, bucket string, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
+func (fs *FSObjects) PutObject(ctx context.Context, bucket, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	if opts.Versioned {
 		return objInfo, NotImplemented{}
 	}
@@ -1037,7 +1037,7 @@ func (fs *FSObjects) PutObject(ctx context.Context, bucket string, object string
 }
 
 // putObject - wrapper for PutObject
-func (fs *FSObjects) putObject(ctx context.Context, bucket string, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, retErr error) {
+func (fs *FSObjects) putObject(ctx context.Context, bucket, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, retErr error) {
 	data := r.Reader
 
 	// No metadata is set, allocate a new one.
@@ -1282,7 +1282,7 @@ func (fs *FSObjects) isObjectDir(bucket, prefix string) bool {
 }
 
 // ListObjectVersions not implemented for FS mode.
-func (fs *FSObjects) ListObjectVersions(ctx context.Context, bucket, prefix, marker, versionMarker, delimiter string, maxKeys int) (loi ListObjectVersionsInfo, e error) {
+func (fs *FSObjects) ListObjectVersions(_ context.Context, _, _, _, _, _ /*bucket, prefix, marker, versionMarker, delimiter*/ string, _ /*maxKeys*/ int) (loi ListObjectVersionsInfo, e error) {
 	return loi, NotImplemented{}
 }
 
@@ -1325,7 +1325,7 @@ func (fs *FSObjects) GetObjectTags(ctx context.Context, bucket, object string, o
 }
 
 // PutObjectTags - replace or add tags to an existing object
-func (fs *FSObjects) PutObjectTags(ctx context.Context, bucket, object string, tags string, opts ObjectOptions) (ObjectInfo, error) {
+func (fs *FSObjects) PutObjectTags(ctx context.Context, bucket, object, tags string, opts ObjectOptions) (ObjectInfo, error) {
 	if opts.VersionID != "" && opts.VersionID != nullVersionID {
 		return ObjectInfo{}, VersionNotFound{
 			Bucket:    bucket,
@@ -1380,19 +1380,19 @@ func (fs *FSObjects) DeleteObjectTags(ctx context.Context, bucket, object string
 }
 
 // HealFormat - no-op for fs, Valid only for Erasure.
-func (fs *FSObjects) HealFormat(ctx context.Context, dryRun bool) (madmin.HealResultItem, error) {
+func (fs *FSObjects) HealFormat(_ context.Context, _ /*dryRun*/ bool) (madmin.HealResultItem, error) {
 	return madmin.HealResultItem{}, NotImplemented{}
 }
 
 // HealObject - no-op for fs. Valid only for Erasure.
-func (fs *FSObjects) HealObject(ctx context.Context, bucket, object, versionID string, opts madmin.HealOpts) (
+func (fs *FSObjects) HealObject(_ context.Context, _, _, _ /*bucket, object, versionID*/ string, _ madmin.HealOpts) (
 	res madmin.HealResultItem, err error,
 ) {
 	return res, NotImplemented{}
 }
 
 // HealBucket - no-op for fs, Valid only for Erasure.
-func (fs *FSObjects) HealBucket(ctx context.Context, bucket string, opts madmin.HealOpts) (madmin.HealResultItem,
+func (fs *FSObjects) HealBucket(_ context.Context, _ /*bucket*/ string, _ madmin.HealOpts) (madmin.HealResultItem,
 	error,
 ) {
 	return madmin.HealResultItem{}, NotImplemented{}
@@ -1403,12 +1403,12 @@ func (fs *FSObjects) HealBucket(ctx context.Context, bucket string, opts madmin.
 // to allocate a receive channel for ObjectInfo, upon any unhandled
 // error walker returns error. Optionally if context.Done() is received
 // then Walk() stops the walker.
-func (fs *FSObjects) Walk(ctx context.Context, bucket, prefix string, results chan<- ObjectInfo, opts ObjectOptions) error {
+func (fs *FSObjects) Walk(ctx context.Context, bucket, prefix string, results chan<- ObjectInfo, _ ObjectOptions) error {
 	return fsWalk(ctx, fs, bucket, prefix, fs.listDirFactory(), fs.isLeaf, fs.isLeafDir, results, fs.getObjectInfoNoFSLock, fs.getObjectInfoNoFSLock)
 }
 
 // HealObjects - no-op for fs. Valid only for Erasure.
-func (fs *FSObjects) HealObjects(ctx context.Context, bucket, prefix string, opts madmin.HealOpts, fn HealObjectFn) (e error) {
+func (fs *FSObjects) HealObjects(ctx context.Context, _, _ /*bucket, prefix*/ string, _ madmin.HealOpts, _ HealObjectFn) (e error) {
 	logger.LogIf(ctx, NotImplemented{})
 	return NotImplemented{}
 }
@@ -1467,7 +1467,7 @@ func (fs *FSObjects) IsTaggingSupported() bool {
 }
 
 // Health returns health of the object layer
-func (fs *FSObjects) Health(ctx context.Context, opts HealthOptions) HealthResult {
+func (fs *FSObjects) Health(_ context.Context, _ HealthOptions) HealthResult {
 	if _, err := os.Stat(fs.fsPath); err != nil {
 		return HealthResult{}
 	}
@@ -1477,17 +1477,17 @@ func (fs *FSObjects) Health(ctx context.Context, opts HealthOptions) HealthResul
 }
 
 // ReadHealth returns "read" health of the object layer
-func (fs *FSObjects) ReadHealth(ctx context.Context) bool {
+func (fs *FSObjects) ReadHealth(_ context.Context) bool {
 	_, err := os.Stat(fs.fsPath)
 	return err == nil
 }
 
 // TransitionObject - transition object content to target tier.
-func (fs *FSObjects) TransitionObject(ctx context.Context, bucket, object string, opts ObjectOptions) error {
+func (fs *FSObjects) TransitionObject(_ context.Context, _, _ /*bucket, object*/ string, _ ObjectOptions) error {
 	return NotImplemented{}
 }
 
 // RestoreTransitionedObject - restore transitioned object content locally on this cluster.
-func (fs *FSObjects) RestoreTransitionedObject(ctx context.Context, bucket, object string, opts ObjectOptions) error {
+func (fs *FSObjects) RestoreTransitionedObject(_ context.Context, _, _ /*bucket, object*/ string, _ ObjectOptions) error {
 	return NotImplemented{}
 }

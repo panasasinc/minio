@@ -418,7 +418,7 @@ func (l *s3Objects) ListObjects(_ context.Context, bucket string, prefix string,
 }
 
 // ListObjectsV2 lists all blobs in S3 bucket filtered by prefix
-func (l *s3Objects) ListObjectsV2(_ context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, fetchOwner bool, startAfter string) (loi minio.ListObjectsV2Info, e error) {
+func (l *s3Objects) ListObjectsV2(_ context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, _ /*fetchOwner*/ bool, startAfter string) (loi minio.ListObjectsV2Info, e error) {
 	result, err := l.Client.ListObjectsV2(bucket, prefix, startAfter, continuationToken, delimiter, maxKeys)
 	if err != nil {
 		return loi, minio.ErrorRespToObjectError(err, bucket)

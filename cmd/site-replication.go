@@ -3934,7 +3934,7 @@ func (c *SiteReplicationSys) healBucketQuotaConfig(ctx context.Context, _ Object
 	return nil
 }
 
-func (c *SiteReplicationSys) healVersioningMetadata(ctx context.Context, objAPI ObjectLayer, bucket string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healVersioningMetadata(ctx context.Context, _ ObjectLayer, bucket string, info srStatusInfo) error {
 	c.RLock()
 	defer c.RUnlock()
 	if !c.enabled {
@@ -4009,7 +4009,7 @@ func (c *SiteReplicationSys) healVersioningMetadata(ctx context.Context, objAPI 
 	return nil
 }
 
-func (c *SiteReplicationSys) healSSEMetadata(ctx context.Context, objAPI ObjectLayer, bucket string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healSSEMetadata(ctx context.Context, _ ObjectLayer, bucket string, info srStatusInfo) error {
 	c.RLock()
 	defer c.RUnlock()
 	if !c.enabled {
@@ -4084,7 +4084,7 @@ func (c *SiteReplicationSys) healSSEMetadata(ctx context.Context, objAPI ObjectL
 	return nil
 }
 
-func (c *SiteReplicationSys) healOLockConfigMetadata(ctx context.Context, objAPI ObjectLayer, bucket string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healOLockConfigMetadata(ctx context.Context, _ ObjectLayer, bucket string, info srStatusInfo) error {
 	bs := info.BucketStats[bucket]
 
 	c.RLock()

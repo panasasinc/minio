@@ -795,7 +795,7 @@ func (er erasureObjects) GetMultipartInfo(ctx context.Context, bucket, object, u
 // Implements S3 compatible ListObjectParts API. The resulting
 // ListPartsInfo structure is marshaled directly into XML and
 // replied back to the client.
-func (er erasureObjects) ListObjectParts(ctx context.Context, bucket, object, uploadID string, partNumberMarker, maxParts int, opts ObjectOptions) (result ListPartsInfo, err error) {
+func (er erasureObjects) ListObjectParts(ctx context.Context, bucket, object, uploadID string, partNumberMarker, maxParts int, _ ObjectOptions) (result ListPartsInfo, err error) {
 	auditObjectErasureSet(ctx, object, &er)
 
 	uploadIDLock := er.NewNSLock(bucket, pathJoin(object, uploadID))
@@ -1247,7 +1247,7 @@ func (er erasureObjects) CompleteMultipartUpload(ctx context.Context, bucket str
 // All parts are purged from all disks and reference to the uploadID
 // would be removed from the system, rollback is not possible on this
 // operation.
-func (er erasureObjects) AbortMultipartUpload(ctx context.Context, bucket, object, uploadID string, opts ObjectOptions) (err error) {
+func (er erasureObjects) AbortMultipartUpload(ctx context.Context, bucket, object, uploadID string, _ ObjectOptions) (err error) {
 	auditObjectErasureSet(ctx, object, &er)
 
 	lk := er.NewNSLock(bucket, pathJoin(object, uploadID))

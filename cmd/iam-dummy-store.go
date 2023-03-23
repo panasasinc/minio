@@ -57,7 +57,7 @@ func (ids *iamDummyStore) getUsersSysType() UsersSysType {
 	return ids.usersSysType
 }
 
-func (ids *iamDummyStore) loadPolicyDoc(ctx context.Context, policy string, m map[string]PolicyDoc) error {
+func (ids *iamDummyStore) loadPolicyDoc(_ context.Context, policy string, m map[string]PolicyDoc) error {
 	v, ok := ids.iamPolicyDocsMap[policy]
 	if !ok {
 		return errNoSuchPolicy
@@ -66,14 +66,14 @@ func (ids *iamDummyStore) loadPolicyDoc(ctx context.Context, policy string, m ma
 	return nil
 }
 
-func (ids *iamDummyStore) loadPolicyDocs(ctx context.Context, m map[string]PolicyDoc) error {
+func (ids *iamDummyStore) loadPolicyDocs(_ context.Context, m map[string]PolicyDoc) error {
 	for k, v := range ids.iamPolicyDocsMap {
 		m[k] = v
 	}
 	return nil
 }
 
-func (ids *iamDummyStore) loadUser(ctx context.Context, user string, userType IAMUserType, m map[string]UserIdentity) error {
+func (ids *iamDummyStore) loadUser(_ context.Context, user string, _ IAMUserType, m map[string]UserIdentity) error {
 	u, ok := ids.iamUsersMap[user]
 	if !ok {
 		return errNoSuchUser
@@ -82,14 +82,14 @@ func (ids *iamDummyStore) loadUser(ctx context.Context, user string, userType IA
 	return nil
 }
 
-func (ids *iamDummyStore) loadUsers(ctx context.Context, userType IAMUserType, m map[string]UserIdentity) error {
+func (ids *iamDummyStore) loadUsers(_ context.Context, _ IAMUserType, m map[string]UserIdentity) error {
 	for k, v := range ids.iamUsersMap {
 		m[k] = v
 	}
 	return nil
 }
 
-func (ids *iamDummyStore) loadGroup(ctx context.Context, group string, m map[string]GroupInfo) error {
+func (ids *iamDummyStore) loadGroup(_ context.Context, group string, m map[string]GroupInfo) error {
 	g, ok := ids.iamGroupsMap[group]
 	if !ok {
 		return errNoSuchGroup
@@ -98,14 +98,14 @@ func (ids *iamDummyStore) loadGroup(ctx context.Context, group string, m map[str
 	return nil
 }
 
-func (ids *iamDummyStore) loadGroups(ctx context.Context, m map[string]GroupInfo) error {
+func (ids *iamDummyStore) loadGroups(_ context.Context, m map[string]GroupInfo) error {
 	for k, v := range ids.iamGroupsMap {
 		m[k] = v
 	}
 	return nil
 }
 
-func (ids *iamDummyStore) loadMappedPolicy(ctx context.Context, name string, userType IAMUserType, isGroup bool, m map[string]MappedPolicy) error {
+func (ids *iamDummyStore) loadMappedPolicy(_ context.Context, name string, _ IAMUserType, isGroup bool, m map[string]MappedPolicy) error {
 	if isGroup {
 		g, ok := ids.iamGroupPolicyMap[name]
 		if !ok {
@@ -122,7 +122,7 @@ func (ids *iamDummyStore) loadMappedPolicy(ctx context.Context, name string, use
 	return nil
 }
 
-func (ids *iamDummyStore) loadMappedPolicies(ctx context.Context, userType IAMUserType, isGroup bool, m map[string]MappedPolicy) error {
+func (ids *iamDummyStore) loadMappedPolicies(_ context.Context, _ IAMUserType, isGroup bool, m map[string]MappedPolicy) error {
 	if !isGroup {
 		for k, v := range ids.iamUserPolicyMap {
 			m[k] = v
@@ -135,46 +135,46 @@ func (ids *iamDummyStore) loadMappedPolicies(ctx context.Context, userType IAMUs
 	return nil
 }
 
-func (ids *iamDummyStore) saveIAMConfig(ctx context.Context, item interface{}, path string, opts ...options) error {
+func (ids *iamDummyStore) saveIAMConfig(_ context.Context, _ /*item*/ interface{}, _ /*path*/ string, _ /*opts*/ ...options) error {
 	return nil
 }
 
-func (ids *iamDummyStore) loadIAMConfig(ctx context.Context, item interface{}, path string) error {
+func (ids *iamDummyStore) loadIAMConfig(_ context.Context, _ /*item*/ interface{}, _ /*path*/ string) error {
 	return nil
 }
 
-func (ids *iamDummyStore) deleteIAMConfig(ctx context.Context, path string) error {
+func (ids *iamDummyStore) deleteIAMConfig(_ context.Context, _ /*path*/ string) error {
 	return nil
 }
 
-func (ids *iamDummyStore) savePolicyDoc(ctx context.Context, policyName string, p PolicyDoc) error {
+func (ids *iamDummyStore) savePolicyDoc(_ context.Context, _ /*policyName*/ string, _ /*p*/ PolicyDoc) error {
 	return nil
 }
 
-func (ids *iamDummyStore) saveMappedPolicy(ctx context.Context, name string, userType IAMUserType, isGroup bool, mp MappedPolicy, opts ...options) error {
+func (ids *iamDummyStore) saveMappedPolicy(_ context.Context, _ /*name*/ string, _ IAMUserType, _ /*isGroup*/ bool, _ MappedPolicy, _ ...options) error {
 	return nil
 }
 
-func (ids *iamDummyStore) saveUserIdentity(ctx context.Context, name string, userType IAMUserType, u UserIdentity, opts ...options) error {
+func (ids *iamDummyStore) saveUserIdentity(_ context.Context, _ /*name*/ string, _ IAMUserType, _ UserIdentity, _ ...options) error {
 	return nil
 }
 
-func (ids *iamDummyStore) saveGroupInfo(ctx context.Context, group string, gi GroupInfo) error {
+func (ids *iamDummyStore) saveGroupInfo(_ context.Context, _ /*group*/ string, _ GroupInfo) error {
 	return nil
 }
 
-func (ids *iamDummyStore) deletePolicyDoc(ctx context.Context, policyName string) error {
+func (ids *iamDummyStore) deletePolicyDoc(_ context.Context, _ /*policyName*/ string) error {
 	return nil
 }
 
-func (ids *iamDummyStore) deleteMappedPolicy(ctx context.Context, name string, userType IAMUserType, isGroup bool) error {
+func (ids *iamDummyStore) deleteMappedPolicy(_ context.Context, _ /*name*/ string, _ IAMUserType, _ /*isGroup*/ bool) error {
 	return nil
 }
 
-func (ids *iamDummyStore) deleteUserIdentity(ctx context.Context, name string, userType IAMUserType) error {
+func (ids *iamDummyStore) deleteUserIdentity(_ context.Context, _ /*name*/ string, _ IAMUserType) error {
 	return nil
 }
 
-func (ids *iamDummyStore) deleteGroupInfo(ctx context.Context, name string) error {
+func (ids *iamDummyStore) deleteGroupInfo(_ context.Context, _ /*name*/ string) error {
 	return nil
 }
