@@ -373,11 +373,11 @@ func TestPANFSMakeBucket(t *testing.T) {
 	}
 
 	// Attempt to create bucket with the same name but different panfs path
-	anotherPanfsPath := pathJoin(disk, nextSuffix())
-	if err := fsMkdir(GlobalContext, anotherPanfsPath); err != nil {
+	anotherBucketPath := pathJoin(disk, nextSuffix())
+	if err := fsMkdir(GlobalContext, anotherBucketPath); err != nil {
 		t.Fatal("Unexpected error: ", err)
 	}
-	err = fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: anotherPanfsPath})
+	err = fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: anotherBucketPath})
 	if !errors.Is(err, BucketExists{Bucket: bucketName}) {
 		t.Fatalf("Expected error %v, got %v", BucketExists{Bucket: bucketName}, err)
 	}

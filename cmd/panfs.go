@@ -736,9 +736,8 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 	if err = Rename(path.Join(bucketDir, panfsMetaDir), deletePath); err != nil {
 		return toObjectErr(err, bucket)
 	}
-	go func() {
-		fsRemoveAll(ctx, deletePath)
-	}()
+
+	fsRemoveAll(ctx, deletePath)
 
 	// Delete all bucket metadata.
 	deleteBucketMetadata(ctx, fs, bucket)
