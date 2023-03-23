@@ -1061,7 +1061,7 @@ func (z *erasureServerPools) getDecommissionPoolSpaceInfo(idx int) (pi poolSpace
 	}, nil
 }
 
-func (z *erasureServerPools) Status(ctx context.Context, idx int) (PoolStatus, error) {
+func (z *erasureServerPools) Status(_ context.Context, idx int) (PoolStatus, error) {
 	if idx < 0 {
 		return PoolStatus{}, errInvalidArgument
 	}

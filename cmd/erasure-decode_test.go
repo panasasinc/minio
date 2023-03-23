@@ -28,7 +28,7 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
-func (a badDisk) ReadFile(ctx context.Context, volume string, path string, offset int64, buf []byte, verifier *BitrotVerifier) (n int64, err error) {
+func (a badDisk) ReadFile(_ context.Context, _, _ /*volume, path*/ string, _ /*offset*/ int64, _ /*buf*/ []byte, _ *BitrotVerifier) (n int64, err error) {
 	return 0, errFaultyDisk
 }
 

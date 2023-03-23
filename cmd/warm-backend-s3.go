@@ -97,7 +97,7 @@ func (s3 *warmBackendS3) Remove(ctx context.Context, object string, rv remoteVer
 	return s3.ToObjectError(err, object)
 }
 
-func (s3 *warmBackendS3) InUse(ctx context.Context) (bool, error) {
+func (s3 *warmBackendS3) InUse(_ context.Context) (bool, error) {
 	result, err := s3.core.ListObjectsV2(s3.Bucket, s3.Prefix, "", "", slashSeparator, 1)
 	if err != nil {
 		return false, s3.ToObjectError(err)
