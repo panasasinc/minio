@@ -1478,11 +1478,9 @@ func filterImmediateDirectoryContents(entries []string, directory string) []stri
 
 		relativeName := entry[entryNameOffset:]
 		slashIdx := strings.Index(relativeName, slashSeparator)
-		if slashIdx < 0 {
-			// OK - no "/" found - this entry is not in a subdirectory.
-		} else if slashIdx == len(relativeName)-1 {
-			// OK - "/" found but is the suffix of the entry.
-		} else {
+		// slashIdx < 0 OK - no "/" found - this entry is not in a subdirectory.
+		// slashIdx == len(relativeName)-1 OK - "/" found but is the suffix of the entry.
+		if slashIdx >= 0 && slashIdx != len(relativeName)-1 {
 			// Skip the entry - it is in a subdirectory.
 			dirName := relativeName[:slashIdx+1]
 			subdirectories[dirName] = true

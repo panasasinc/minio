@@ -481,8 +481,17 @@ func TestTreeWalkIsEnd(t *testing.T) {
 	}
 	for i, test := range testCases {
 		var entry TreeWalkResult
-		for entry = range startTreeWalk(context.Background(), volume, test.prefix,
+		/*for entry = range startTreeWalk(context.Background(), volume, test.prefix,
 			test.marker, test.recursive, listDir, isLeaf, isLeafDir, endWalkCh) {
+		}*/
+		ch := startTreeWalk(context.Background(), volume, test.prefix,
+			test.marker, test.recursive, listDir, isLeaf, isLeafDir, endWalkCh)
+		for {
+			tmp, ok := <-ch
+			if !ok {
+				break
+			}
+			entry = tmp
 		}
 		if entry.entry != test.expectedEntry {
 			t.Errorf("Test %d: Expected entry %s, but received %s with the EOF marker", i, test.expectedEntry, entry.entry)

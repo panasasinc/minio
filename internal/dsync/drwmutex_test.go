@@ -90,7 +90,7 @@ func TestSimpleWriteLockTimedOut(t *testing.T) {
 	}
 }
 
-func testDualWriteLock(t *testing.T, duration time.Duration) (locked bool) {
+func testDualWriteLock(_ *testing.T, duration time.Duration) (locked bool) {
 	drwm1 := NewDRWMutex(ds, "duallock")
 
 	// fmt.Println("Getting initial write lock")
@@ -174,7 +174,7 @@ func doTestParallelReaders(numReaders, gomaxprocs int) {
 }
 
 // Borrowed from rwmutex_test.go
-func TestParallelReaders(t *testing.T) {
+func TestParallelReaders(_ *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
 	doTestParallelReaders(1, 4)
 	doTestParallelReaders(3, 4)

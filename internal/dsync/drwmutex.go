@@ -383,7 +383,13 @@ func refreshLock(ctx context.Context, ds *Dsync, id, _ string, quorum int) (bool
 	go func() {
 		wg.Wait()
 		close(ch)
-		for range ch {
+		/*for range ch {
+		}*/
+		for {
+			_, ok := <-ch
+			if !ok {
+				break
+			}
 		}
 	}()
 

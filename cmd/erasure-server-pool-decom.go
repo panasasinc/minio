@@ -972,7 +972,7 @@ func (z *erasureServerPools) decommissionInBackground(ctx context.Context, idx i
 	return nil
 }
 
-func (z *erasureServerPools) doDecommissionInRoutine(ctx context.Context, idx int) {
+func (z *erasureServerPools) doDecommissionInRoutine(_ context.Context, idx int) {
 	z.poolMetaMutex.Lock()
 	var dctx context.Context
 	dctx, z.decommissionCancelers[idx] = context.WithCancel(GlobalContext)

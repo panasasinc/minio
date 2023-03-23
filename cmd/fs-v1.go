@@ -1243,7 +1243,7 @@ func (fs *FSObjects) isLeafDir(bucket string, leafPath string) bool {
 	return fs.isObjectDir(bucket, leafPath)
 }
 
-func (fs *FSObjects) isLeaf(bucket string, leafPath string) bool {
+func (fs *FSObjects) isLeaf(_ /*bucket*/ string, leafPath string) bool {
 	return !strings.HasSuffix(leafPath, slashSeparator)
 }
 

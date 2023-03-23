@@ -3721,7 +3721,7 @@ func (c *SiteReplicationSys) healBuckets(ctx context.Context, objAPI ObjectLayer
 	return nil
 }
 
-func (c *SiteReplicationSys) healTagMetadata(ctx context.Context, objAPI ObjectLayer, bucket string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healTagMetadata(ctx context.Context, _ ObjectLayer, bucket string, info srStatusInfo) error {
 	bs := info.BucketStats[bucket]
 
 	c.RLock()
@@ -3793,7 +3793,7 @@ func (c *SiteReplicationSys) healTagMetadata(ctx context.Context, objAPI ObjectL
 	return nil
 }
 
-func (c *SiteReplicationSys) healBucketPolicies(ctx context.Context, objAPI ObjectLayer, bucket string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healBucketPolicies(ctx context.Context, _ ObjectLayer, bucket string, info srStatusInfo) error {
 	bs := info.BucketStats[bucket]
 
 	c.RLock()
@@ -3858,7 +3858,7 @@ func (c *SiteReplicationSys) healBucketPolicies(ctx context.Context, objAPI Obje
 	return nil
 }
 
-func (c *SiteReplicationSys) healBucketQuotaConfig(ctx context.Context, objAPI ObjectLayer, bucket string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healBucketQuotaConfig(ctx context.Context, _ ObjectLayer, bucket string, info srStatusInfo) error {
 	bs := info.BucketStats[bucket]
 
 	c.RLock()

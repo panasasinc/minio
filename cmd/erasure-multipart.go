@@ -762,7 +762,7 @@ func (er erasureObjects) PutObjectPart(ctx context.Context, bucket, object, uplo
 // - encrypted
 // - compressed
 // Does not contain currently uploaded parts by design.
-func (er erasureObjects) GetMultipartInfo(ctx context.Context, bucket, object, uploadID string, opts ObjectOptions) (MultipartInfo, error) {
+func (er erasureObjects) GetMultipartInfo(ctx context.Context, bucket, object, uploadID string, _ ObjectOptions) (MultipartInfo, error) {
 	auditObjectErasureSet(ctx, object, &er)
 
 	result := MultipartInfo{

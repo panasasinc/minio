@@ -188,7 +188,7 @@ func (p *unrecognizedDisk) StatVol(_ context.Context, _ /*volume*/ string) (vol 
 	return vol, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) DeleteVol(_ context.Context, _ /*volume*/ string, forceDelete bool) (err error) {
+func (p *unrecognizedDisk) DeleteVol(_ context.Context, _ /*volume*/ string, _ /*forceDelete*/ bool) (err error) {
 	return errDiskNotFound
 }
 
@@ -196,19 +196,19 @@ func (p *unrecognizedDisk) ListDir(_ context.Context, _, _ /*volume, dirPath*/ s
 	return nil, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ReadFile(_ context.Context, _, _ /*volume, path*/ string, offset int64, buf []byte, verifier *BitrotVerifier) (n int64, err error) {
+func (p *unrecognizedDisk) ReadFile(_ context.Context, _, _ /*volume, path*/ string, _ /*offset*/ int64, _ /*buf*/ []byte, _ *BitrotVerifier) (n int64, err error) {
 	return 0, errDiskNotFound
 }
 
-func (p *unrecognizedDisk) AppendFile(_ context.Context, _, _ /*volume, path*/ string, buf []byte) (err error) {
+func (p *unrecognizedDisk) AppendFile(_ context.Context, _, _ /*volume, path*/ string, _ /*buf*/ []byte) (err error) {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) CreateFile(_ context.Context, _, _ /*volume, path*/ string, size int64, reader io.Reader) error {
+func (p *unrecognizedDisk) CreateFile(_ context.Context, _, _ /*volume, path*/ string, _ /*size*/ int64, _ io.Reader) error {
 	return errDiskNotFound
 }
 
-func (p *unrecognizedDisk) ReadFileStream(_ context.Context, _, _ /*volume, path*/ string, offset, length int64) (io.ReadCloser, error) {
+func (p *unrecognizedDisk) ReadFileStream(_ context.Context, _, _ /*volume, path*/ string, _, _ /*offset, length*/ int64) (io.ReadCloser, error) {
 	return nil, errDiskNotFound
 }
 

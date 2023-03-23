@@ -200,12 +200,12 @@ func (a GatewayUnsupported) ListObjectsV2(_ context.Context, _, _, _, _ /*bucket
 }
 
 // Walk - Not implemented stub
-func (a GatewayUnsupported) Walk(_ context.Context, bucket, prefix string, results chan<- ObjectInfo, opts ObjectOptions) error {
+func (a GatewayUnsupported) Walk(_ context.Context, _, _ /*bucket, prefix*/ string, _ /*results*/ chan<- ObjectInfo, _ ObjectOptions) error {
 	return NotImplemented{}
 }
 
 // HealObjects - Not implemented stub
-func (a GatewayUnsupported) HealObjects(_ context.Context, bucket, prefix string, opts madmin.HealOpts, fn HealObjectFn) (e error) {
+func (a GatewayUnsupported) HealObjects(_ context.Context, _, _ /*bucket, prefix*/ string, _ madmin.HealOpts, _ HealObjectFn) (e error) {
 	return NotImplemented{}
 }
 

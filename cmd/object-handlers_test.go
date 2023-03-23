@@ -3862,7 +3862,7 @@ func TestAPIListObjectPartsHandlerPreSign(t *testing.T) {
 		[]string{"PutObjectPart", "NewMultipart", "ListObjectParts"})
 }
 
-func testAPIListObjectPartsHandlerPreSign(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
+func testAPIListObjectPartsHandlerPreSign(_ ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
 	credentials auth.Credentials, t *testing.T,
 ) {
 	testObject := "testobject"

@@ -314,7 +314,7 @@ func HammerMutex(m *DRWMutex, loops int, cdone chan bool) {
 }
 
 // Borrowed from mutex_test.go
-func TestMutex(t *testing.T) {
+func TestMutex(_ *testing.T) {
 	loops := 200
 	if testing.Short() {
 		loops = 5
