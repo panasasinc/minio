@@ -4335,7 +4335,7 @@ func (c *SiteReplicationSys) healBucket(ctx context.Context, objAPI ObjectLayer,
 	return nil
 }
 
-func (c *SiteReplicationSys) healBucketReplicationConfig(ctx context.Context, objAPI ObjectLayer, bucket string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healBucketReplicationConfig(ctx context.Context, _ ObjectLayer, bucket string, info srStatusInfo) error {
 	bs := info.BucketStats[bucket]
 
 	c.RLock()
@@ -4414,7 +4414,7 @@ func (c *SiteReplicationSys) healIAMSystem(ctx context.Context, objAPI ObjectLay
 }
 
 // heal iam policies present on this site to peers, provided current cluster has the most recent update.
-func (c *SiteReplicationSys) healPolicies(ctx context.Context, objAPI ObjectLayer, policy string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healPolicies(ctx context.Context, _ ObjectLayer, policy string, info srStatusInfo) error {
 	// create IAM policy on peer cluster if missing
 	ps := info.PolicyStats[policy]
 
@@ -4469,7 +4469,7 @@ func (c *SiteReplicationSys) healPolicies(ctx context.Context, objAPI ObjectLaye
 }
 
 // heal user policy mappings present on this site to peers, provided current cluster has the most recent update.
-func (c *SiteReplicationSys) healUserPolicies(ctx context.Context, objAPI ObjectLayer, user string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healUserPolicies(ctx context.Context, _ ObjectLayer, user string, info srStatusInfo) error {
 	// create user policy mapping on peer cluster if missing
 	us := info.UserStats[user]
 
@@ -4529,7 +4529,7 @@ func (c *SiteReplicationSys) healUserPolicies(ctx context.Context, objAPI Object
 }
 
 // heal group policy mappings present on this site to peers, provided current cluster has the most recent update.
-func (c *SiteReplicationSys) healGroupPolicies(ctx context.Context, objAPI ObjectLayer, group string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healGroupPolicies(ctx context.Context, _ ObjectLayer, group string, info srStatusInfo) error {
 	// create group policy mapping on peer cluster if missing
 	gs := info.GroupStats[group]
 
@@ -4592,7 +4592,7 @@ func (c *SiteReplicationSys) healGroupPolicies(ctx context.Context, objAPI Objec
 
 // heal all users and their service accounts that are present on this site,
 // provided current cluster has the most recent update.
-func (c *SiteReplicationSys) healUsers(ctx context.Context, objAPI ObjectLayer, user string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healUsers(ctx context.Context, _ ObjectLayer, user string, info srStatusInfo) error {
 	// create user if missing; fix user policy mapping if missing
 	us := info.UserStats[user]
 
@@ -4723,7 +4723,7 @@ func (c *SiteReplicationSys) healUsers(ctx context.Context, objAPI ObjectLayer, 
 	return nil
 }
 
-func (c *SiteReplicationSys) healGroups(ctx context.Context, objAPI ObjectLayer, group string, info srStatusInfo) error {
+func (c *SiteReplicationSys) healGroups(ctx context.Context, _ ObjectLayer, group string, info srStatusInfo) error {
 	c.RLock()
 	defer c.RUnlock()
 	if !c.enabled {

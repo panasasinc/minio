@@ -73,7 +73,7 @@ func (ids *iamDummyStore) loadPolicyDocs(_ context.Context, m map[string]PolicyD
 	return nil
 }
 
-func (ids *iamDummyStore) loadUser(_ context.Context, user string, _ IAMUserType, m map[string]UserIdentity) error {
+func (ids *iamDummyStore) loadUser(_ context.Context, user string, _ IAMUserType, _ map[string]UserIdentity) error {
 	u, ok := ids.iamUsersMap[user]
 	if !ok {
 		return errNoSuchUser

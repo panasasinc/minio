@@ -73,7 +73,7 @@ func (iamOS *IAMObjectStore) getUsersSysType() UsersSysType {
 	return iamOS.usersSysType
 }
 
-func (iamOS *IAMObjectStore) saveIAMConfig(ctx context.Context, item interface{}, objPath string, opts ...options) error {
+func (iamOS *IAMObjectStore) saveIAMConfig(ctx context.Context, item interface{}, objPath string, _ ...options) error {
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	data, err := json.Marshal(item)
 	if err != nil {

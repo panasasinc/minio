@@ -403,7 +403,7 @@ func (fs *PANFSObjects) PutObjectPart(ctx context.Context, bucket, object, uploa
 // by callers to verify object states
 // - encrypted
 // - compressed
-func (fs *PANFSObjects) GetMultipartInfo(ctx context.Context, bucket, object, uploadID string, opts ObjectOptions) (MultipartInfo, error) {
+func (fs *PANFSObjects) GetMultipartInfo(ctx context.Context, bucket, object, uploadID string, _ ObjectOptions) (MultipartInfo, error) {
 	minfo := MultipartInfo{
 		Bucket:   bucket,
 		Object:   object,

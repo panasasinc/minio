@@ -371,7 +371,7 @@ func (fs *FSObjects) PutObjectPart(ctx context.Context, bucket, object, uploadID
 // by callers to verify object states
 // - encrypted
 // - compressed
-func (fs *FSObjects) GetMultipartInfo(ctx context.Context, bucket, object, uploadID string, opts ObjectOptions) (MultipartInfo, error) {
+func (fs *FSObjects) GetMultipartInfo(ctx context.Context, bucket, object, uploadID string, _ ObjectOptions) (MultipartInfo, error) {
 	minfo := MultipartInfo{
 		Bucket:   bucket,
 		Object:   object,

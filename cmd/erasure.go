@@ -78,7 +78,7 @@ func (er erasureObjects) NewNSLock(bucket string, objects ...string) RWLocker {
 }
 
 // Shutdown function for object storage interface.
-func (er erasureObjects) Shutdown(ctx context.Context) error {
+func (er erasureObjects) Shutdown(_ context.Context) error {
 	// Add any object layer shutdown activities here.
 	closeStorageDisks(er.getDisks()...)
 	return nil
@@ -258,14 +258,14 @@ func getStorageInfo(disks []StorageAPI, endpoints []Endpoint) (StorageInfo, []er
 }
 
 // StorageInfo - returns underlying storage statistics.
-func (er erasureObjects) StorageInfo(ctx context.Context) (StorageInfo, []error) {
+func (er erasureObjects) StorageInfo(_ context.Context) (StorageInfo, []error) {
 	disks := er.getDisks()
 	endpoints := er.getEndpoints()
 	return getStorageInfo(disks, endpoints)
 }
 
 // LocalStorageInfo - returns underlying local storage statistics.
-func (er erasureObjects) LocalStorageInfo(ctx context.Context) (StorageInfo, []error) {
+func (er erasureObjects) LocalStorageInfo(_ context.Context) (StorageInfo, []error) {
 	disks := er.getDisks()
 	endpoints := er.getEndpoints()
 
