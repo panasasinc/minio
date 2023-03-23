@@ -180,7 +180,7 @@ func (sys *BucketTargetSys) ListTargets(ctx context.Context, bucket, arnType str
 }
 
 // ListBucketTargets - gets list of bucket targets for this bucket.
-func (sys *BucketTargetSys) ListBucketTargets(ctx context.Context, bucket string) (*madmin.BucketTargets, error) {
+func (sys *BucketTargetSys) ListBucketTargets(_ context.Context, bucket string) (*madmin.BucketTargets, error) {
 	sys.RLock()
 	defer sys.RUnlock()
 
@@ -340,14 +340,14 @@ func (sys *BucketTargetSys) RemoveTarget(ctx context.Context, bucket, arnStr str
 }
 
 // GetRemoteTargetClient returns minio-go client for replication target instance
-func (sys *BucketTargetSys) GetRemoteTargetClient(ctx context.Context, arn string) *TargetClient {
+func (sys *BucketTargetSys) GetRemoteTargetClient(_ context.Context, arn string) *TargetClient {
 	sys.RLock()
 	defer sys.RUnlock()
 	return sys.arnRemotesMap[arn]
 }
 
 // GetRemoteBucketTargetByArn returns BucketTarget for a ARN
-func (sys *BucketTargetSys) GetRemoteBucketTargetByArn(ctx context.Context, bucket, arn string) madmin.BucketTarget {
+func (sys *BucketTargetSys) GetRemoteBucketTargetByArn(_ context.Context, bucket, arn string) madmin.BucketTarget {
 	sys.RLock()
 	defer sys.RUnlock()
 	var tgt madmin.BucketTarget

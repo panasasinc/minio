@@ -2014,7 +2014,7 @@ func listAndHeal(ctx context.Context, bucket, prefix string, set *erasureObjects
 	return nil
 }
 
-func (z *erasureServerPools) HealObjects(ctx context.Context, bucket, prefix string, opts madmin.HealOpts, healObjectFn HealObjectFn) error {
+func (z *erasureServerPools) HealObjects(ctx context.Context, bucket, prefix string, _ madmin.HealOpts, healObjectFn HealObjectFn) error {
 	healEntry := func(entry metaCacheEntry) error {
 		if entry.isDir() {
 			return nil
