@@ -95,7 +95,7 @@ func (evnot *EventNotifier) set(bucket BucketInfo, meta BucketMetadata) {
 }
 
 // InitBucketTargets - initializes event notification system from notification.xml of all buckets.
-func (evnot *EventNotifier) InitBucketTargets(ctx context.Context, objAPI ObjectLayer) error {
+func (evnot *EventNotifier) InitBucketTargets(_ context.Context, objAPI ObjectLayer) error {
 	if objAPI == nil {
 		return errServerNotInitialized
 	}

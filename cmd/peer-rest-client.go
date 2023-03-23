@@ -817,7 +817,7 @@ func (client *peerRESTClient) GetPeerMetrics(ctx context.Context) (<-chan Metric
 	return ch, nil
 }
 
-func (client *peerRESTClient) SpeedTest(ctx context.Context, opts speedTestOpts) (SpeedTestResult, error) {
+func (client *peerRESTClient) SpeedTest(_ context.Context, opts speedTestOpts) (SpeedTestResult, error) {
 	values := make(url.Values)
 	values.Set(peerRESTSize, strconv.Itoa(opts.objectSize))
 	values.Set(peerRESTConcurrent, strconv.Itoa(opts.concurrency))
@@ -875,7 +875,7 @@ func (client *peerRESTClient) DriveSpeedTest(ctx context.Context, opts madmin.Dr
 	return result, nil
 }
 
-func (client *peerRESTClient) ReloadSiteReplicationConfig(ctx context.Context) error {
+func (client *peerRESTClient) ReloadSiteReplicationConfig(_ context.Context) error {
 	respBody, err := client.callWithContext(context.Background(), peerRESTMethodReloadSiteReplicationConfig, nil, nil, -1)
 	if err != nil {
 		return err
