@@ -183,7 +183,7 @@ func (r *ReplicationStats) Get(bucket string) BucketReplicationStats {
 }
 
 // NewReplicationStats initialize in-memory replication statistics
-func NewReplicationStats(ctx context.Context, objectAPI ObjectLayer) *ReplicationStats {
+func NewReplicationStats(_ context.Context, _ ObjectLayer) *ReplicationStats {
 	return &ReplicationStats{
 		Cache:      make(map[string]*BucketReplicationStats),
 		UsageCache: make(map[string]*BucketReplicationStats),
@@ -367,7 +367,7 @@ func (r *ReplicationStats) calculateBucketReplicationStats(bucket string, u Buck
 }
 
 // get the most current of in-memory replication stats  and data usage info from crawler.
-func (r *ReplicationStats) getLatestReplicationStats(bucket string, u BucketUsageInfo) (s BucketReplicationStats) {
+func (r *ReplicationStats) getLatestReplicationStats(bucket string, u BucketUsageInfo) BucketReplicationStats {
 	bucketStats := globalNotificationSys.GetClusterBucketStats(GlobalContext, bucket)
 	return r.calculateBucketReplicationStats(bucket, u, bucketStats)
 }

@@ -1347,7 +1347,7 @@ func deleteObjectPerfBucket(objectAPI ObjectLayer) {
 	})
 }
 
-func validateObjPerfOptions(ctx context.Context, storageInfo madmin.StorageInfo, concurrent int, size int, autotune bool) (bool, bool, string) {
+func validateObjPerfOptions(_ context.Context, storageInfo madmin.StorageInfo, concurrent, size int, autotune bool) (bool, bool, string) {
 	capacityNeeded := uint64(concurrent * size)
 	capacity := GetTotalUsableCapacityFree(storageInfo.Disks, storageInfo)
 
@@ -2842,7 +2842,7 @@ func createHostAnonymizerForFSMode() map[string]string {
 // host:port/drivepath, full url (http://host:port/drivepath)
 // The anonymizer map will have mappings for all these varients for efficiently replacing
 // any of these strings to the anonymized versions at the time of health report generation.
-func anonymizeHost(hostAnonymizer map[string]string, endpoint Endpoint, poolNum int, srvrNum int) {
+func anonymizeHost(hostAnonymizer map[string]string, endpoint Endpoint, poolNum, srvrNum int) {
 	if len(endpoint.Host) == 0 {
 		return
 	}

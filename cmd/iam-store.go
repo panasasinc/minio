@@ -1795,7 +1795,7 @@ func (store *IAMStoreSys) UpdateServiceAccount(ctx context.Context, accessKey st
 }
 
 // ListTempAccounts - lists only temporary accounts from the cache.
-func (store *IAMStoreSys) ListTempAccounts(ctx context.Context, accessKey string) ([]UserIdentity, error) {
+func (store *IAMStoreSys) ListTempAccounts(_ context.Context, accessKey string) ([]UserIdentity, error) {
 	cache := store.rlock()
 	defer store.runlock()
 
