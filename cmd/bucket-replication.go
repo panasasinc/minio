@@ -687,7 +687,7 @@ func (m caseInsensitiveMap) Lookup(key string) (string, bool) {
 	return "", false
 }
 
-func putReplicationOpts(ctx context.Context, sc string, objInfo ObjectInfo) (putOpts miniogo.PutObjectOptions, err error) {
+func putReplicationOpts(_ context.Context, sc string, objInfo ObjectInfo) (putOpts miniogo.PutObjectOptions, err error) {
 	meta := make(map[string]string)
 	for k, v := range objInfo.UserDefined {
 		if strings.HasPrefix(strings.ToLower(k), ReservedMetadataPrefixLower) {
@@ -2023,7 +2023,7 @@ func scheduleReplication(ctx context.Context, objInfo ObjectInfo, o ObjectLayer,
 	}
 }
 
-func scheduleReplicationDelete(ctx context.Context, dv DeletedObjectReplicationInfo, o ObjectLayer) {
+func scheduleReplicationDelete(_ context.Context, dv DeletedObjectReplicationInfo, _ ObjectLayer) {
 	globalReplicationPool.queueReplicaDeleteTask(dv)
 	for arn := range dv.ReplicationState.Targets {
 		globalReplicationStats.Update(dv.Bucket, arn, 0, 0, replication.Pending, replication.StatusType(""), replication.DeleteReplicationType)
@@ -2388,7 +2388,7 @@ func startReplicationResync(ctx context.Context, bucket, arn, resyncID string, r
 }
 
 // delete resync metadata from replication resync state in memory
-func (p *ReplicationPool) deleteResyncMetadata(ctx context.Context, bucket string) {
+func (p *ReplicationPool) deleteResyncMetadata(_ context.Context, bucket string) {
 	if p == nil {
 		return
 	}
@@ -2438,7 +2438,7 @@ func (p *ReplicationPool) loadResync(ctx context.Context, buckets []BucketInfo, 
 }
 
 // load bucket resync metadata from disk
-func loadBucketResyncMetadata(ctx context.Context, bucket string, objAPI ObjectLayer) (brs BucketReplicationResyncStatus, e error) {
+func loadBucketResyncMetadata(_ context.Context, bucket string, objAPI ObjectLayer) (brs BucketReplicationResyncStatus, e error) {
 	brs = newBucketResyncStatus(bucket)
 
 	resyncDirPath := path.Join(bucketMetaPrefix, bucket, replicationDir)
@@ -2596,7 +2596,7 @@ func QueueReplicationHeal(ctx context.Context, bucket string, oi ObjectInfo) {
 
 // queueReplicationHeal enqueues objects that failed replication OR eligible for resyncing through
 // an ongoing resync operation or via existing objects replication configuration setting.
-func queueReplicationHeal(ctx context.Context, bucket string, oi ObjectInfo, rcfg replicationConfig) (roi ReplicateObjectInfo) {
+func queueReplicationHeal(_ context.Context, _ /*bucket*/ string, oi ObjectInfo, rcfg replicationConfig) (roi ReplicateObjectInfo) {
 	// un-versioned or a prefix
 	if oi.VersionID == "" || oi.ModTime.IsZero() {
 		return roi
