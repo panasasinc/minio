@@ -575,7 +575,7 @@ func (s *xlStorage) NSScanner(ctx context.Context, cache dataUsageCache, updates
 
 // DiskInfo provides current information about disk space usage,
 // total free inodes and underlying filesystem.
-func (s *xlStorage) DiskInfo(context.Context) (info DiskInfo, err error) {
+func (s *xlStorage) DiskInfo(_ context.Context) (info DiskInfo, err error) {
 	s.diskInfoCache.Once.Do(func() {
 		s.diskInfoCache.TTL = time.Second
 		s.diskInfoCache.Update = func() (interface{}, error) {
@@ -737,7 +737,7 @@ func (s *xlStorage) MakeVolBulk(ctx context.Context, volumes ...string) error {
 }
 
 // Make a volume entry.
-func (s *xlStorage) MakeVol(ctx context.Context, volume string) error {
+func (s *xlStorage) MakeVol(_ context.Context, volume string) error {
 	if !isValidVolname(volume) {
 		return errInvalidArgument
 	}
@@ -799,7 +799,7 @@ func listVols(ctx context.Context, dirPath string) ([]VolInfo, error) {
 }
 
 // StatVol - get volume info.
-func (s *xlStorage) StatVol(ctx context.Context, volume string) (vol VolInfo, err error) {
+func (s *xlStorage) StatVol(_ context.Context, volume string) (vol VolInfo, err error) {
 	// Verify if volume is valid and it exists.
 	volumeDir, err := s.getVolDir(volume)
 	if err != nil {
@@ -831,7 +831,7 @@ func (s *xlStorage) StatVol(ctx context.Context, volume string) (vol VolInfo, er
 }
 
 // DeleteVol - delete a volume.
-func (s *xlStorage) DeleteVol(ctx context.Context, volume string, forceDelete bool) (err error) {
+func (s *xlStorage) DeleteVol(_ context.Context, volume string, forceDelete bool) (err error) {
 	// Verify if volume is valid and it exists.
 	volumeDir, err := s.getVolDir(volume)
 	if err != nil {
@@ -1965,7 +1965,7 @@ func (s *xlStorage) WriteAll(ctx context.Context, volume string, path string, b 
 
 // AppendFile - append a byte array at path, if file doesn't exist at
 // path this call explicitly creates it.
-func (s *xlStorage) AppendFile(ctx context.Context, volume string, path string, buf []byte) (err error) {
+func (s *xlStorage) AppendFile(_ context.Context, volume string, path string, buf []byte) (err error) {
 	volumeDir, err := s.getVolDir(volume)
 	if err != nil {
 		return err
@@ -2010,7 +2010,7 @@ func (s *xlStorage) AppendFile(ctx context.Context, volume string, path string, 
 }
 
 // CheckParts check if path has necessary parts available.
-func (s *xlStorage) CheckParts(ctx context.Context, volume string, path string, fi FileInfo) error {
+func (s *xlStorage) CheckParts(_ context.Context, volume, path string, fi FileInfo) error {
 	volumeDir, err := s.getVolDir(volume)
 	if err != nil {
 		return err
@@ -2103,7 +2103,7 @@ func (s *xlStorage) deleteFile(basePath, deletePath string, recursive, force boo
 }
 
 // DeleteFile - delete a file at path.
-func (s *xlStorage) Delete(ctx context.Context, volume string, path string, deleteOpts DeleteOptions) (err error) {
+func (s *xlStorage) Delete(_ context.Context, volume string, path string, deleteOpts DeleteOptions) (err error) {
 	volumeDir, err := s.getVolDir(volume)
 	if err != nil {
 		return err
@@ -2452,7 +2452,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 }
 
 // RenameFile - rename source path to destination path atomically.
-func (s *xlStorage) RenameFile(ctx context.Context, srcVolume, srcPath, dstVolume, dstPath string) (err error) {
+func (s *xlStorage) RenameFile(_ context.Context, srcVolume, srcPath, dstVolume, dstPath string) (err error) {
 	srcVolumeDir, err := s.getVolDir(srcVolume)
 	if err != nil {
 		return err
@@ -2660,7 +2660,7 @@ func (s *xlStorage) ReadMultiple(ctx context.Context, req ReadMultipleReq, resp 
 	return nil
 }
 
-func (s *xlStorage) StatInfoFile(ctx context.Context, volume, path string, glob bool) (stat []StatInfo, err error) {
+func (s *xlStorage) StatInfoFile(_ context.Context, volume, path string, glob bool) (stat []StatInfo, err error) {
 	volumeDir, err := s.getVolDir(volume)
 	if err != nil {
 		return stat, err

@@ -1131,7 +1131,7 @@ func (sys *NotificationSys) GetClusterMetrics(ctx context.Context) <-chan Metric
 //   - Server needs to be restarted 'mc admin service restart'
 //   - 'freeze' should be set to 'false' for this call
 //     to resume normal operations.
-func (sys *NotificationSys) ServiceFreeze(ctx context.Context, freeze bool) []NotificationPeerErr {
+func (sys *NotificationSys) ServiceFreeze(_ context.Context, freeze bool) []NotificationPeerErr {
 	serviceSig := serviceUnFreeze
 	if freeze {
 		serviceSig = serviceFreeze
