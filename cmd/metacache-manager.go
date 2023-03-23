@@ -108,7 +108,7 @@ func (m *metacacheManager) updateCacheEntry(update metacache) (metacache, error)
 }
 
 // getBucket will get a bucket metacache or load it from disk if needed.
-func (m *metacacheManager) getBucket(ctx context.Context, bucket string) *bucketMetacache {
+func (m *metacacheManager) getBucket(_ context.Context, bucket string) *bucketMetacache {
 	m.init.Do(m.initManager)
 
 	// Return a transient bucket for invalid or system buckets.

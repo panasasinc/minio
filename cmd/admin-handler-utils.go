@@ -251,7 +251,7 @@ func importError(ctx context.Context, err error, fname, entity string) APIError 
 }
 
 // wraps import error for more context
-func importErrorWithAPIErr(ctx context.Context, apiErr APIErrorCode, err error, fname, entity string) APIError {
+func importErrorWithAPIErr(_ context.Context, apiErr APIErrorCode, err error, fname, entity string) APIError {
 	if entity == "" {
 		return errorCodes.ToAPIErrWithErr(apiErr, fmt.Errorf("error importing %s with: %w", fname, err))
 	}

@@ -1024,7 +1024,7 @@ func (sys *IAMSys) GetServiceAccount(ctx context.Context, accessKey string) (aut
 }
 
 // getServiceAccount - gets information about a service account
-func (sys *IAMSys) getServiceAccount(ctx context.Context, accessKey string) (u UserIdentity, p *iampolicy.Policy, err error) {
+func (sys *IAMSys) getServiceAccount(_ context.Context, accessKey string) (u UserIdentity, p *iampolicy.Policy, err error) {
 	if !sys.Initialized() {
 		return u, nil, errServerNotInitialized
 	}
@@ -1060,7 +1060,7 @@ func (sys *IAMSys) getServiceAccount(ctx context.Context, accessKey string) (u U
 }
 
 // GetClaimsForSvcAcc - gets the claims associated with the service account.
-func (sys *IAMSys) GetClaimsForSvcAcc(ctx context.Context, accessKey string) (map[string]interface{}, error) {
+func (sys *IAMSys) GetClaimsForSvcAcc(_ context.Context, accessKey string) (map[string]interface{}, error) {
 	if !sys.Initialized() {
 		return nil, errServerNotInitialized
 	}
