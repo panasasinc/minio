@@ -365,7 +365,7 @@ func (c *diskCache) purge(ctx context.Context) {
 		return lastATime
 	}
 
-	filterFn := func(name string, typ os.FileMode) error {
+	filterFn := func(name string, _ os.FileMode) error {
 		if name == minioMetaBucket {
 			// Proceed to next file.
 			return nil
@@ -563,20 +563,20 @@ func (c *diskCache) statRange(ctx context.Context, bucket, object string, rs *HT
 }
 
 // statCache is a convenience function for purge() to get ObjectInfo for cached object
-func (c *diskCache) statCache(ctx context.Context, cacheObjPath string) (meta *cacheMeta, partial bool, numHits int, err error) {
+func (c *diskCache) statCache(_ context.Context, cacheObjPath string) (*cacheMeta, bool, int, error) {
 	// Stat the file to get file size.
 	metaPath := pathJoin(cacheObjPath, cacheMetaJSONFile)
 	f, err := os.Open(metaPath)
 	if err != nil {
-		return meta, partial, 0, err
+		return nil, false, 0, err
 	}
 	defer f.Close()
-	meta = &cacheMeta{Version: cacheMetaVersion}
+	meta := &cacheMeta{Version: cacheMetaVersion}
 	if err := jsonLoad(f, meta); err != nil {
-		return meta, partial, 0, err
+		return meta, false, 0, err
 	}
 	// get metadata of part.1 if full file has been cached.
-	partial = true
+	partial := true
 	if _, err := os.Stat(pathJoin(cacheObjPath, cacheDataFile)); err == nil {
 		partial = false
 	}
@@ -614,7 +614,7 @@ func (c *diskCache) SaveMetadata(ctx context.Context, bucket, object string, met
 
 // saves object metadata to disk cache
 // incHitsOnly is true if metadata update is incrementing only the hit counter
-func (c *diskCache) saveMetadata(ctx context.Context, bucket, object string, meta map[string]string, actualSize int64, rs *HTTPRangeSpec, rsFileName string, incHitsOnly bool) error {
+func (c *diskCache) saveMetadata(_ context.Context, bucket, object string, meta map[string]string, actualSize int64, rs *HTTPRangeSpec, rsFileName string, incHitsOnly bool) error {
 	cachedPath := getCacheSHADir(c.dir, bucket, object)
 	metaPath := pathJoin(cachedPath, cacheMetaJSONFile)
 	// Create cache directory if needed
@@ -677,7 +677,7 @@ func (c *diskCache) saveMetadata(ctx context.Context, bucket, object string, met
 }
 
 // updates the ETag and ModTime on cache with ETag from backend
-func (c *diskCache) updateMetadata(ctx context.Context, bucket, object, etag string, modTime time.Time, size int64) error {
+func (c *diskCache) updateMetadata(_ context.Context, bucket, object, etag string, modTime time.Time, size int64) error {
 	cachedPath := getCacheSHADir(c.dir, bucket, object)
 	metaPath := pathJoin(cachedPath, cacheMetaJSONFile)
 	// Create cache directory if needed
@@ -1217,7 +1217,7 @@ func (c *diskCache) Delete(ctx context.Context, bucket, object string) (err erro
 }
 
 // convenience function to check if object is cached on this diskCache
-func (c *diskCache) Exists(ctx context.Context, bucket, object string) bool {
+func (c *diskCache) Exists(_ context.Context, bucket, object string) bool {
 	if _, err := os.Stat(getCacheSHADir(c.dir, bucket, object)); err != nil {
 		return false
 	}
@@ -1227,7 +1227,7 @@ func (c *diskCache) Exists(ctx context.Context, bucket, object string) bool {
 // queues writeback upload failures on server startup
 func (c *diskCache) scanCacheWritebackFailures(ctx context.Context) {
 	defer close(c.retryWritebackCh)
-	filterFn := func(name string, typ os.FileMode) error {
+	filterFn := func(name string, _ os.FileMode) error {
 		if name == minioMetaBucket {
 			// Proceed to next file.
 			return nil
@@ -1307,7 +1307,7 @@ func (c *diskCache) NewMultipartUpload(ctx context.Context, bucket, object, uID 
 }
 
 // PutObjectPart caches part to cache multipart path.
-func (c *diskCache) PutObjectPart(ctx context.Context, bucket, object, uploadID string, partID int, data io.Reader, size int64, opts ObjectOptions) (partInfo PartInfo, err error) {
+func (c *diskCache) PutObjectPart(ctx context.Context, bucket, object, uploadID string, partID int, data io.Reader, size int64, _ ObjectOptions) (partInfo PartInfo, err error) {
 	oi := PartInfo{}
 	if !c.diskSpaceAvailable(size) {
 		io.Copy(io.Discard, data)
@@ -1422,7 +1422,7 @@ func (c *diskCache) SavePartMetadata(ctx context.Context, bucket, object, upload
 }
 
 // newCachePartEncryptReader returns encrypted cache part reader, with part data encrypted with part encryption key
-func newCachePartEncryptReader(ctx context.Context, bucket, object string, partID int, content io.Reader, size int64, metadata map[string]string) (r io.Reader, err error) {
+func newCachePartEncryptReader(_ context.Context, bucket, object string, partID int, content io.Reader, size int64, metadata map[string]string) (r io.Reader, err error) {
 	var key []byte
 	var objectEncryptionKey, partEncryptionKey crypto.ObjectKey
 
@@ -1470,7 +1470,7 @@ func (c *diskCache) uploadIDExists(bucket, object, uploadID string) (err error) 
 
 // CompleteMultipartUpload completes multipart upload on cache. The parts and cache.json are moved from the temporary location in
 // .minio.sys/multipart/cacheSHA/.. to cacheSHA path after part verification succeeds.
-func (c *diskCache) CompleteMultipartUpload(ctx context.Context, bucket, object, uploadID string, uploadedParts []CompletePart, roi ObjectInfo, opts ObjectOptions) (oi ObjectInfo, err error) {
+func (c *diskCache) CompleteMultipartUpload(ctx context.Context, bucket, object, uploadID string, uploadedParts []CompletePart, roi ObjectInfo, _ ObjectOptions) (oi ObjectInfo, err error) {
 	cachePath := getCacheSHADir(c.dir, bucket, object)
 	cLock := c.NewNSLockFn(cachePath)
 	lkctx, err := cLock.GetLock(ctx, globalOperationTimeout)

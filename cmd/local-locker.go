@@ -70,7 +70,7 @@ func (l *localLocker) canTakeLock(resources ...string) bool {
 	return true
 }
 
-func (l *localLocker) Lock(ctx context.Context, args dsync.LockArgs) (reply bool, err error) {
+func (l *localLocker) Lock(_ context.Context, args dsync.LockArgs) (reply bool, err error) {
 	if len(args.Resources) > maxDeleteList {
 		return false, fmt.Errorf("internal error: localLocker.Lock called with more than %d resources", maxDeleteList)
 	}
@@ -158,7 +158,7 @@ func (l *localLocker) removeEntry(name string, args dsync.LockArgs, lri *[]lockR
 	return false
 }
 
-func (l *localLocker) RLock(ctx context.Context, args dsync.LockArgs) (reply bool, err error) {
+func (l *localLocker) RLock(_ context.Context, args dsync.LockArgs) (reply bool, err error) {
 	if len(args.Resources) > 1 {
 		return false, fmt.Errorf("internal error: localLocker.RLock called with more than one resource")
 	}

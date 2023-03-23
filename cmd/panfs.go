@@ -230,7 +230,7 @@ func (fs *PANFSObjects) LocalStorageInfo(ctx context.Context) (StorageInfo, []er
 
 // StorageInfo - returns underlying storage statistics.
 // TODO: update in data usage story
-func (fs *PANFSObjects) StorageInfo(ctx context.Context) (StorageInfo, []error) {
+func (fs *PANFSObjects) StorageInfo(_ context.Context) (StorageInfo, []error) {
 	di, err := getDiskInfo(fs.fsPath)
 	if err != nil {
 		return StorageInfo{}, []error{err}

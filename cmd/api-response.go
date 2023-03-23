@@ -891,7 +891,7 @@ func writeErrorResponseHeadersOnly(w http.ResponseWriter, err APIError) {
 	writeResponse(w, err.HTTPStatusCode, nil, mimeNone)
 }
 
-func writeErrorResponseString(ctx context.Context, w http.ResponseWriter, err APIError, _ *url.URL) {
+func writeErrorResponseString(_ context.Context, w http.ResponseWriter, err APIError, _ *url.URL) {
 	// Generate string error response.
 	writeResponse(w, err.HTTPStatusCode, []byte(err.Description), mimeNone)
 }
