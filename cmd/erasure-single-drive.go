@@ -201,7 +201,7 @@ func (es *erasureSingle) NewNSLock(bucket string, objects ...string) RWLocker {
 }
 
 // Shutdown function for object storage interface.
-func (es *erasureSingle) Shutdown(ctx context.Context) error {
+func (es *erasureSingle) Shutdown(_ context.Context) error {
 	defer es.shutdown()
 
 	// Add any object layer shutdown activities here.
@@ -231,7 +231,7 @@ func (es *erasureSingle) BackendInfo() (b madmin.BackendInfo) {
 }
 
 // StorageInfo - returns underlying storage statistics.
-func (es *erasureSingle) StorageInfo(ctx context.Context) (StorageInfo, []error) {
+func (es *erasureSingle) StorageInfo(_ context.Context) (StorageInfo, []error) {
 	disks := []StorageAPI{es.disk}
 	endpoints := []Endpoint{es.endpoint}
 
@@ -241,7 +241,7 @@ func (es *erasureSingle) StorageInfo(ctx context.Context) (StorageInfo, []error)
 }
 
 // LocalStorageInfo - returns underlying local storage statistics.
-func (es *erasureSingle) LocalStorageInfo(ctx context.Context) (StorageInfo, []error) {
+func (es *erasureSingle) LocalStorageInfo(_ context.Context) (StorageInfo, []error) {
 	disks := []StorageAPI{es.disk}
 	endpoints := []Endpoint{es.endpoint}
 
@@ -2548,7 +2548,7 @@ func (es *erasureSingle) GetMultipartInfo(ctx context.Context, bucket, object, u
 // Implements S3 compatible ListObjectParts API. The resulting
 // ListPartsInfo structure is marshaled directly into XML and
 // replied back to the client.
-func (es *erasureSingle) ListObjectParts(ctx context.Context, bucket, object, uploadID string, partNumberMarker, maxParts int, opts ObjectOptions) (result ListPartsInfo, err error) {
+func (es *erasureSingle) ListObjectParts(ctx context.Context, bucket, object, uploadID string, partNumberMarker, maxParts int, _ ObjectOptions) (result ListPartsInfo, err error) {
 	if err := checkListPartsArgs(ctx, bucket, object, es); err != nil {
 		return ListPartsInfo{}, err
 	}
@@ -2912,7 +2912,7 @@ func (es *erasureSingle) CompleteMultipartUpload(ctx context.Context, bucket str
 // All parts are purged from all disks and reference to the uploadID
 // would be removed from the system, rollback is not possible on this
 // operation.
-func (es *erasureSingle) AbortMultipartUpload(ctx context.Context, bucket, object, uploadID string, opts ObjectOptions) (err error) {
+func (es *erasureSingle) AbortMultipartUpload(ctx context.Context, bucket, object, uploadID string, _ ObjectOptions) (err error) {
 	if err = checkAbortMultipartArgs(ctx, bucket, object, es); err != nil {
 		return err
 	}

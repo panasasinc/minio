@@ -418,7 +418,7 @@ func (fs *FSObjects) GetMultipartInfo(ctx context.Context, bucket, object, uploa
 // Implements S3 compatible ListObjectParts API. The resulting
 // ListPartsInfo structure is unmarshalled directly into XML and
 // replied back to the client.
-func (fs *FSObjects) ListObjectParts(ctx context.Context, bucket, object, uploadID string, partNumberMarker, maxParts int, opts ObjectOptions) (result ListPartsInfo, e error) {
+func (fs *FSObjects) ListObjectParts(ctx context.Context, bucket, object, uploadID string, partNumberMarker, maxParts int, _ ObjectOptions) (result ListPartsInfo, e error) {
 	if err := checkListPartsArgs(ctx, bucket, object, fs); err != nil {
 		return result, toObjectErr(err)
 	}
@@ -806,7 +806,7 @@ func (fs *FSObjects) CompleteMultipartUpload(ctx context.Context, bucket string,
 // that this is an atomic idempotent operation. Subsequent calls have
 // no affect and further requests to the same uploadID would not be
 // honored.
-func (fs *FSObjects) AbortMultipartUpload(ctx context.Context, bucket, object, uploadID string, opts ObjectOptions) error {
+func (fs *FSObjects) AbortMultipartUpload(ctx context.Context, bucket, object, uploadID string, _ ObjectOptions) error {
 	if err := checkAbortMultipartArgs(ctx, bucket, object, fs); err != nil {
 		return err
 	}
@@ -850,7 +850,7 @@ func (fs *FSObjects) AbortMultipartUpload(ctx context.Context, bucket, object, u
 
 // Return all uploads IDs with full path of each upload-id directory.
 // Do not return an error as this is a lazy operation
-func (fs *FSObjects) getAllUploadIDs(ctx context.Context) (result map[string]string) {
+func (fs *FSObjects) getAllUploadIDs(_ context.Context) (result map[string]string) {
 	result = make(map[string]string)
 
 	entries, err := readDir(pathJoin(fs.fsPath, minioMetaMultipartBucket))

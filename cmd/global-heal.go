@@ -143,7 +143,7 @@ func getBackgroundHealStatus(ctx context.Context, o ObjectLayer) (madmin.BgHealS
 	return status, true
 }
 
-func mustGetHealSequence(ctx context.Context) *healSequence {
+func mustGetHealSequence(_ context.Context) *healSequence {
 	// Get background heal sequence to send elements to heal
 	for {
 		globalHealStateLK.RLock()
