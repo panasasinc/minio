@@ -282,7 +282,7 @@ func (fi FileInfo) ObjectToPartOffset(ctx context.Context, offset int64) (partIn
 	return 0, 0, InvalidRange{}
 }
 
-func findFileInfoInQuorum(ctx context.Context, metaArr []FileInfo, modTime time.Time, quorum int) (FileInfo, error) {
+func findFileInfoInQuorum(_ context.Context, metaArr []FileInfo, modTime time.Time, quorum int) (FileInfo, error) {
 	// with less quorum return error.
 	if quorum < 1 {
 		return FileInfo{}, errErasureReadQuorum

@@ -182,7 +182,7 @@ func (ies *IAMEtcdStore) loadPolicyDoc(ctx context.Context, policy string, m map
 	return nil
 }
 
-func (ies *IAMEtcdStore) getPolicyDocKV(ctx context.Context, kvs *mvccpb.KeyValue, m map[string]PolicyDoc) error {
+func (ies *IAMEtcdStore) getPolicyDocKV(_ context.Context, kvs *mvccpb.KeyValue, m map[string]PolicyDoc) error {
 	data, err := decryptData(kvs.Value, string(kvs.Key))
 	if err != nil {
 		if err == errConfigNotFound {
@@ -336,7 +336,7 @@ func (ies *IAMEtcdStore) loadMappedPolicy(ctx context.Context, name string, user
 	return nil
 }
 
-func getMappedPolicy(ctx context.Context, kv *mvccpb.KeyValue, userType IAMUserType, isGroup bool, m map[string]MappedPolicy, basePrefix string) error {
+func getMappedPolicy(_ context.Context, kv *mvccpb.KeyValue, _ IAMUserType, _ /*isGroup*/ bool, m map[string]MappedPolicy, basePrefix string) error {
 	var p MappedPolicy
 	err := getIAMConfig(&p, kv.Value, string(kv.Key))
 	if err != nil {
