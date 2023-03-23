@@ -1905,7 +1905,6 @@ type objTestDiskNotFoundType func(obj ObjectLayer, instanceType string, dirs []s
 // ExecObjectLayerTest - executes object layer tests.
 // Creates single node and Erasure ObjectLayer instance and runs test for both the layers.
 func ExecObjectLayerTest(t TestErrHandler, objTest objTestType) {
-
 	ctx, cancel := context.WithCancel(context.Background())
 	if localMetacacheMgr != nil {
 		localMetacacheMgr.deleteAll()

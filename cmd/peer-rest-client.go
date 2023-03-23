@@ -884,7 +884,7 @@ func (client *peerRESTClient) ReloadSiteReplicationConfig(_ context.Context) err
 	return nil
 }
 
-func (client *peerRESTClient) GetLastDayTierStats(ctx context.Context) (DailyAllTierStats, error) {
+func (client *peerRESTClient) GetLastDayTierStats(_ context.Context) (DailyAllTierStats, error) {
 	var result map[string]lastDayTierStats
 	respBody, err := client.callWithContext(context.Background(), peerRESTMethodGetLastDayTierStats, nil, nil, -1)
 	if err != nil {
@@ -910,7 +910,7 @@ func (client *peerRESTClient) DevNull(ctx context.Context, r io.Reader) error {
 }
 
 // Netperf - To initiate netperf on peer
-func (client *peerRESTClient) Netperf(ctx context.Context, duration time.Duration) (madmin.NetperfNodeResult, error) {
+func (client *peerRESTClient) Netperf(_ context.Context, duration time.Duration) (madmin.NetperfNodeResult, error) {
 	var result madmin.NetperfNodeResult
 	values := make(url.Values)
 	values.Set(peerRESTDuration, duration.String())

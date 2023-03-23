@@ -573,7 +573,7 @@ func (c *SiteReplicationSys) PeerJoinReq(ctx context.Context, arg madmin.SRPeerJ
 
 // GetIDPSettings returns info about the configured identity provider. It is
 // used to validate that all peers have the same IDP.
-func (c *SiteReplicationSys) GetIDPSettings(ctx context.Context) madmin.IDPSettings {
+func (c *SiteReplicationSys) GetIDPSettings(_ context.Context) madmin.IDPSettings {
 	s := madmin.IDPSettings{}
 	s.LDAP = madmin.LDAPSettings{
 		IsLDAPEnabled:          globalLDAPConfig.Enabled(),
@@ -618,7 +618,7 @@ func (c *SiteReplicationSys) validateIDPSettings(ctx context.Context, peers []Pe
 }
 
 // GetClusterInfo - returns site replication information.
-func (c *SiteReplicationSys) GetClusterInfo(ctx context.Context) (info madmin.SiteReplicationInfo, err error) {
+func (c *SiteReplicationSys) GetClusterInfo(_ context.Context) (info madmin.SiteReplicationInfo, err error) {
 	c.RLock()
 	defer c.RUnlock()
 	if !c.enabled {
@@ -1480,7 +1480,7 @@ func (c *SiteReplicationSys) PeerBucketQuotaConfigHandler(ctx context.Context, b
 
 // getAdminClient - NOTE: ensure to take at least a read lock on SiteReplicationSys
 // before calling this.
-func (c *SiteReplicationSys) getAdminClient(ctx context.Context, deploymentID string) (*madmin.AdminClient, error) {
+func (c *SiteReplicationSys) getAdminClient(_ context.Context, deploymentID string) (*madmin.AdminClient, error) {
 	creds, err := c.getPeerCreds()
 	if err != nil {
 		return nil, err
@@ -1496,7 +1496,7 @@ func (c *SiteReplicationSys) getAdminClient(ctx context.Context, deploymentID st
 
 // getAdminClientWithEndpoint - NOTE: ensure to take at least a read lock on SiteReplicationSys
 // before calling this.
-func (c *SiteReplicationSys) getAdminClientWithEndpoint(ctx context.Context, deploymentID, endpoint string) (*madmin.AdminClient, error) {
+func (c *SiteReplicationSys) getAdminClientWithEndpoint(_ context.Context, deploymentID, endpoint string) (*madmin.AdminClient, error) {
 	creds, err := c.getPeerCreds()
 	if err != nil {
 		return nil, err
@@ -4159,7 +4159,7 @@ func (c *SiteReplicationSys) healOLockConfigMetadata(ctx context.Context, _ Obje
 	return nil
 }
 
-func (c *SiteReplicationSys) purgeDeletedBucket(ctx context.Context, objAPI ObjectLayer, bucket string) {
+func (c *SiteReplicationSys) purgeDeletedBucket(_ context.Context, objAPI ObjectLayer, bucket string) {
 	z, ok := objAPI.(*erasureServerPools)
 	if !ok {
 		if z, ok := objAPI.(*erasureSingle); ok {

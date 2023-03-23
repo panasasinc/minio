@@ -68,7 +68,7 @@ func (f *firstByteRecorder) Read(p []byte) (n int, err error) {
 }
 
 // Runs the speedtest on local MinIO process.
-func selfSpeedTest(ctx context.Context, opts speedTestOpts) (SpeedTestResult, error) {
+func selfSpeedTest(_ context.Context, opts speedTestOpts) (SpeedTestResult, error) {
 	objAPI := newObjectLayerFn()
 	if objAPI == nil {
 		return SpeedTestResult{}, errServerNotInitialized

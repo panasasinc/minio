@@ -1541,7 +1541,7 @@ func (s *xlStorage) ReadAll(ctx context.Context, volume string, path string) (bu
 //
 // Additionally ReadFile also starts reading from an offset. ReadFile
 // semantics are same as io.ReadFull.
-func (s *xlStorage) ReadFile(ctx context.Context, volume string, path string, offset int64, buffer []byte, verifier *BitrotVerifier) (int64, error) {
+func (s *xlStorage) ReadFile(_ context.Context, volume, path string, offset int64, buffer []byte, verifier *BitrotVerifier) (int64, error) {
 	if offset < 0 {
 		return 0, errInvalidArgument
 	}

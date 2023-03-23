@@ -263,7 +263,7 @@ func (r BatchJobReplicateV1) Notify(ctx context.Context, body io.Reader) error {
 }
 
 // ReplicateFromSource - this is not implemented yet where source is 'remote' and target is local.
-func (r *BatchJobReplicateV1) ReplicateFromSource(ctx context.Context, api ObjectLayer, c *miniogo.Core, srcObject string) error {
+func (r *BatchJobReplicateV1) ReplicateFromSource(_ context.Context, _ ObjectLayer, _ *miniogo.Core, _ /*srcObject*/ string) error {
 	return nil
 }
 

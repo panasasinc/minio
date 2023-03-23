@@ -45,7 +45,7 @@ type HTTPConsoleLoggerSys struct {
 
 // NewConsoleLogger - creates new HTTPConsoleLoggerSys with all nodes subscribed to
 // the console logging pub sub system
-func NewConsoleLogger(ctx context.Context) *HTTPConsoleLoggerSys {
+func NewConsoleLogger(_ context.Context) *HTTPConsoleLoggerSys {
 	ps := pubsub.New(8)
 	return &HTTPConsoleLoggerSys{
 		pubsub:  ps,

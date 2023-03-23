@@ -1828,7 +1828,7 @@ func (store *IAMStoreSys) ListTempAccounts(_ context.Context, accessKey string) 
 }
 
 // ListServiceAccounts - lists only service accounts from the cache.
-func (store *IAMStoreSys) ListServiceAccounts(ctx context.Context, accessKey string) ([]auth.Credentials, error) {
+func (store *IAMStoreSys) ListServiceAccounts(_ context.Context, accessKey string) ([]auth.Credentials, error) {
 	cache := store.rlock()
 	defer store.runlock()
 
