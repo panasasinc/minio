@@ -401,7 +401,7 @@ func gatewayHandleEnvVars() {
 			logger.Fatal(config.ErrInvalidDefaultPanFSBucketPath(nil),
 				"Path is not valid")
 		}
-		globalPanFSDefaultBucketPath = retainSlash(path)
+		globalPanFSDefaultBucketPath = path
 
 		panFSOnlyLocalAdminAPI := env.Get("MINIO_PANFS_ONLY_LOCAL_ADMIN_API", "1")
 		if panFSOnlyLocalAdminAPI == "0" {

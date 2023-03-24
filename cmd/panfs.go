@@ -533,16 +533,12 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		return toObjectErr(errVolumeExists, bucket)
 	}
 
-	if err := fs.checkBucketPanFSPathNesting(ctx, opts.PanFSBucketPath); err != nil {
-		return toObjectErr(err, bucket)
-	}
-
 	defer NSUpdated(bucket, slashSeparator)
 	var dirs []string
 	var bucketPanFSPath string
 	var bucketMetaDir string
 
-	if opts.PanFSBucketPath != globalPanFSDefaultBucketPath {
+	if retainSlash(opts.PanFSBucketPath) != retainSlash(globalPanFSDefaultBucketPath) {
 		// Mapping to an existing folder
 		bucketPanFSPath = opts.PanFSBucketPath
 		bucketMetaDir = pathJoin(opts.PanFSBucketPath, panfsMetaDir)
@@ -551,6 +547,11 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		bucketPanFSPath = pathJoin(opts.PanFSBucketPath, bucket)
 		bucketMetaDir = pathJoin(opts.PanFSBucketPath, bucket, panfsMetaDir)
 		dirs = append(dirs, pathJoin(opts.PanFSBucketPath, bucket))
+	}
+	logger.Info("Bucket path: %s", bucketPanFSPath)
+
+	if err := fs.checkBucketPanFSPathNesting(ctx, bucketPanFSPath); err != nil {
+		return toObjectErr(err, bucket)
 	}
 	dirs = append(dirs,
 		bucketMetaDir,
@@ -564,7 +565,8 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	}
 
 	meta := newBucketMetadata(bucket)
-	meta.PanFSPath = bucketPanFSPath
+	// Save panfs path with trailing slash
+	meta.PanFSPath = retainSlash(bucketPanFSPath)
 
 	if err := meta.Save(ctx, fs); err != nil {
 		return toObjectErr(err, bucket)
@@ -1866,7 +1868,7 @@ func (fs *PANFSObjects) getTempDir(bucketDir string) string {
 }
 
 // checkBucketPanFSPathNesting checks whether new bucket path is intersecting with any of existing bucket paths. This
-// function returns an error when new bucket path is on the top of any of existing buckets as well.
+// function returns an error when new bucket path is on the top of any existing bucket path as well.
 // Example. Existing bucket paths: /a/b/c /a/b/d /a/b1/b2/c3/d4
 // /a/b/c/d /a/b/d/e /a/b1/b2/c3/d4/e5/f	INVALID
 // /a/b/c1 /a/b/f 							OK
