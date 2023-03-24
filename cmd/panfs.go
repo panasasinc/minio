@@ -698,7 +698,7 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 }
 
 // ListBuckets - list all s3 compatible buckets (directories) at fsPath.
-func (fs *PANFSObjects) ListBuckets(ctx context.Context, opts BucketOptions) ([]BucketInfo, error) {
+func (fs *PANFSObjects) ListBuckets(ctx context.Context, _ BucketOptions) ([]BucketInfo, error) {
 	if err := checkPathLength(fs.fsPath); err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err
@@ -720,7 +720,7 @@ func (fs *PANFSObjects) ListBuckets(ctx context.Context, opts BucketOptions) ([]
 // DeleteBucket - delete a bucket and all the metadata associated
 // with the bucket including pending multipart, object metadata.
 // TODO: there is no need to delete user data when deleting bucket.
-func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts DeleteBucketOptions) error {
+func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, _ DeleteBucketOptions) error {
 	defer NSUpdated(bucket, slashSeparator)
 
 	if err := dotS3PrefixCheck(bucket); err != nil {
