@@ -548,7 +548,6 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		bucketMetaDir = pathJoin(opts.PanFSBucketPath, bucket, panfsMetaDir)
 		dirs = append(dirs, pathJoin(opts.PanFSBucketPath, bucket))
 	}
-	logger.Info("Bucket path: %s", bucketPanFSPath)
 
 	if err := fs.checkBucketPanFSPathNesting(ctx, bucketPanFSPath); err != nil {
 		return toObjectErr(err, bucket)
