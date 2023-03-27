@@ -19,7 +19,7 @@ help: ## print this help
 
 getdeps: ## fetch necessary dependencies
 	@mkdir -p ${GOPATH}/bin
-	@echo "Installing golangci-lint" && curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin
+	@echo "Installing golangci-lint" && curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/v1.52.2/install.sh | sh -s -- -b $(GOPATH)/bin
 	@echo "Installing msgp" && go install -v github.com/tinylib/msgp@f3635b96e4838a6c773babb65ef35297fe5fe2f9
 	@echo "Installing stringer" && go install -v golang.org/x/tools/cmd/stringer@latest
 
