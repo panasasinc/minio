@@ -18,6 +18,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -98,6 +99,54 @@ func mkdirAll(dirPath string, mode os.FileMode) (err error) {
 	return nil
 }
 
+func panMkdirAll(dirPath string, mode os.FileMode, ownerID, groupID int) (err error) {
+	if dirPath == "" {
+		return errInvalidArgument
+	}
+
+	if err = checkPathLength(dirPath); err != nil {
+		return err
+	}
+
+	if ownerID < 0 {
+		return errors.New("negative ownerID")
+	}
+	if groupID < 0 {
+		return errors.New("negative groupID")
+	}
+
+	if err = panReliableMkdirAll(dirPath, mode, ownerID, groupID); err != nil {
+		// File path cannot be verified since one of the parents is a file.
+		if isSysErrNotDir(err) {
+			return errFileAccessDenied
+		} else if isSysErrPathNotFound(err) {
+			// This is a special case should be handled only for
+			// windows, because windows API does not return "not a
+			// directory" error message. Handle this specifically here.
+			return errFileAccessDenied
+		}
+		return osErrToFileErr(err)
+	}
+
+	return nil
+}
+
+func panReliableMkdirAll(dirPath string, mode os.FileMode, ownerID, groupID int) (err error) {
+	i := 0
+	for {
+		// Creates all the parent directories, with mode 0777 mkdir honors system umask.
+		if err = panOSMkdirAll(dirPath, mode, ownerID, groupID); err != nil {
+			// Retry only for the first retryable error.
+			if osIsNotExist(err) && i == 0 {
+				i++
+				continue
+			}
+		}
+		break
+	}
+	return err
+}
+
 // Reliably retries os.MkdirAll if for some reason os.MkdirAll returns
 // syscall.ENOENT (parent does not exist).
 func reliableMkdirAll(dirPath string, mode os.FileMode) (err error) {
@@ -164,7 +213,7 @@ func renameAll(srcFilePath, dstFilePath string) (err error) {
 // and reliableRenameAll. This is to ensure that if there is a
 // racy parent directory delete in between we can simply retry
 // the operation.
-func panRenameFileAll(srcFilePath, dstFilePath string) (err error) {
+func panRenameFileAll(srcFilePath, dstFilePath string, mode os.FileMode, ownerID, groupID int) (err error) {
 	if srcFilePath == "" || dstFilePath == "" {
 		return errInvalidArgument
 	}
@@ -176,7 +225,7 @@ func panRenameFileAll(srcFilePath, dstFilePath string) (err error) {
 		return err
 	}
 
-	if err = panReliableRenameFile(srcFilePath, dstFilePath); err != nil {
+	if err = panReliableRenameFile(srcFilePath, dstFilePath, mode, ownerID, groupID); err != nil {
 		switch {
 		case isSysErrNotDir(err) && !osIsNotExist(err):
 			// Windows can have both isSysErrNotDir(err) and osIsNotExist(err) returning
@@ -228,8 +277,8 @@ func reliableRename(srcFilePath, dstFilePath string) (err error) {
 
 // Reliably retries os.RenameAll if for some reason os.RenameAll returns
 // syscall.ENOENT (parent does not exist).
-func panReliableRenameFile(srcFilePath, dstFilePath string) (err error) {
-	if err = reliableMkdirAll(path.Dir(dstFilePath), 0o777); err != nil {
+func panReliableRenameFile(srcFilePath, dstFilePath string, mode os.FileMode, ownerID, groupID int) (err error) {
+	if err = panReliableMkdirAll(path.Dir(dstFilePath), mode, ownerID, groupID); err != nil {
 		return err
 	}
 

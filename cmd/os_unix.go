@@ -86,6 +86,40 @@ func osMkdirAll(dirPath string, perm os.FileMode) error {
 
 	return nil
 }
+func panOSMkdirAll(dirPath string, perm os.FileMode, ownerID, groupID int) error {
+	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
+	err := Access(dirPath)
+	if err == nil {
+		return nil
+	}
+	if !osIsNotExist(err) {
+		return &os.PathError{Op: "mkdir", Path: dirPath, Err: err}
+	}
+
+	// Slow path: make sure parent exists and then call Mkdir for path.
+	i := len(dirPath)
+	for i > 0 && os.IsPathSeparator(dirPath[i-1]) { // Skip trailing path separator.
+		i--
+	}
+
+	j := i
+	for j > 0 && !os.IsPathSeparator(dirPath[j-1]) { // Scan backward over element.
+		j--
+	}
+
+	if j > 1 {
+		// Create parent.
+		if err = osMkdirAll(dirPath[:j-1], perm); err != nil {
+			return err
+		}
+	}
+
+	// Parent now exists; invoke Mkdir and use its result.
+	if err = Mkdir(dirPath, perm); err != nil && !osIsExist(err) {
+		return err
+	}
+	return os.Chown(dirPath, ownerID, groupID)
+}
 
 // The buffer must be at least a block long.
 // refer https://github.com/golang/go/issues/24015
