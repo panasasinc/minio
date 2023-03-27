@@ -1,6 +1,16 @@
 linters-settings:
   gofumpt:
     lang-version: "1.19"
+  revive:
+    severity: error
+    rules:
+      - name: unused-parameter
+        severity: warning
+        disabled: true
+      - name: function-result-limit
+        severity: warning
+        disabled: false
+        arguments: [10]
 
   misspell:
     locale: US
