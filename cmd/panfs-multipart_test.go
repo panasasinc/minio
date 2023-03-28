@@ -36,13 +36,8 @@ import (
 // initPanFSWithBucket initializes the panfs backend and creates a bucket for testing
 // Fail test when object init or bucket creation will fail
 func initPanFSWithBucket(bucket string, t *testing.T) (obj ObjectLayer, disk string) {
-	var err error
-	defer func() {
-		if err != nil {
-			os.RemoveAll(disk)
-		}
-	}()
 	disk = filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
+
 	usr, err := user.Current()
 	if err != nil {
 		t.Fatalf("Cannot find user: " + err.Error())
@@ -50,19 +45,16 @@ func initPanFSWithBucket(bucket string, t *testing.T) (obj ObjectLayer, disk str
 
 	os.Setenv(config.EnvPanDefaultOwner, usr.Uid)
 	os.Setenv(config.EnvPanDefaultGroup, usr.Gid)
+
 	obj, err = initPanFSObjects(disk)
 	obj = obj.(*PANFSObjects)
 	if err != nil {
-		t.Fatalf("Cannot init PANFS backend: %v", err)
+		t.Fatalf("Cannot init PANFS backend: \"%v\"", err)
 	}
 	if bucket != "" {
-		err = fsMkdir(GlobalContext, pathJoin(disk, bucket))
+		err = obj.MakeBucketWithLocation(GlobalContext, bucket, MakeBucketOptions{PanFSBucketPath: disk})
 		if err != nil {
-			t.Fatalf("Cannot create directory for bucket mapping: %v", err)
-		}
-		err = obj.MakeBucketWithLocation(GlobalContext, bucket, MakeBucketOptions{PanFSBucketPath: pathJoin(disk, bucket)})
-		if err != nil {
-			t.Fatalf("Cannot create bucket: %v", err)
+			t.Fatalf("Cannot create bucket \"%v\"", err)
 		}
 	}
 	return

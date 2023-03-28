@@ -153,6 +153,11 @@ func (c *Client) GetObjectsList(prefix string) ([]string, error) {
 		return []string{}, ErrUnexpectedContentType(contentType)
 	}
 
+	if err != nil {
+		log.Printf("Reading response body failed with error: %s\n", err)
+		return []string{}, err
+	}
+
 	dec := json.NewDecoder(resp.Body)
 	var result []string
 	err = dec.Decode(&result)
@@ -210,6 +215,7 @@ func (c *Client) GetObject(objectName string) (dataReader io.ReadCloser, oi *Obj
 
 	metadata := resp.Header.Get(panasasHTTPS3MetadataHeader)
 	oi, err = parseObjectInfo(metadata)
+
 	if err != nil {
 		log.Printf(
 			"Failed parsing object info for %v from metadata %q: %s\n",
@@ -219,7 +225,6 @@ func (c *Client) GetObject(objectName string) (dataReader io.ReadCloser, oi *Obj
 		)
 		return nil, nil, err
 	}
-	oi.ByteLength = resp.ContentLength
 
 	return resp.Body, oi, nil
 }
@@ -349,7 +354,6 @@ func (c *Client) GetObjectInfo(objectName string) (oi *ObjectInfo, err error) {
 		)
 		return nil, err
 	}
-	oi.ByteLength = resp.ContentLength
 
 	return oi, nil
 }

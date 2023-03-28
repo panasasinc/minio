@@ -9,9 +9,8 @@ import (
 )
 
 const (
-	testAgentURL        = "http://192.168.56.1:8081"
-	testConfigNamespace = "s3"
-	timeAccuracy        = 200 * time.Millisecond
+	testAgentURL        string = "http://192.168.56.1:8081"
+	testConfigNamespace string = "s3"
 )
 
 func verifyWriteLocks(t *testing.T) {
@@ -607,11 +606,9 @@ func stringIndex(needle string, haystack []string) int {
 	return -1
 }
 
-// Performs a check of timestamps: start - accuracy <= tested <= end + accuracy
+// Performs a check of timestamps: start <= tested <= end
 // Must ensure: start <= end
 func timestampWithinRange(tested, start, end time.Time) bool {
-	start = start.Add(-timeAccuracy)
-	end = end.Add(timeAccuracy)
 	if tested.After(start) {
 		return tested.Before(end) || tested.Equal(end)
 	}
@@ -894,7 +891,7 @@ func verifyPutExistingObject(t *testing.T) {
 	pc.DeleteObject(objectName)
 }
 
-// verifyGetObjectInfo1 - test GetObjectInfo() for a non-existent object
+// verifyGetObjectInfo1 - test GetObjectInfo() for an existing object
 func verifyGetObjectInfo1(t *testing.T) {
 	pc := NewClient(testAgentURL, testConfigNamespace)
 	objectName := "test/getObjectInfo/test1/name"

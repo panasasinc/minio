@@ -401,7 +401,6 @@ const (
 	// PanFS Gateway specific errors
 	ErrPanFSBucketPathNotFound
 	ErrPanFSInvalidSymbolsFound
-	ErrPanFSBucketPathNotValid
 )
 
 type errorCodeMap map[APIErrorCode]APIError
@@ -1914,11 +1913,6 @@ var errorCodes = errorCodeMap{
 		Description:    "It is not allowed to use .s3 in object or bucket name",
 		HTTPStatusCode: http.StatusBadRequest,
 	},
-	ErrPanFSBucketPathNotValid: {
-		Code:           "InvalidArgument",
-		Description:    "PanFS bucket path validation failed",
-		HTTPStatusCode: http.StatusBadRequest,
-	},
 	// Add your error structure here.
 }
 
@@ -2145,8 +2139,6 @@ func toAPIErrorCode(ctx context.Context, err error) (apiErr APIErrorCode) {
 		apiErr = ErrInvalidObjectState
 	case PanFSS3InvalidName:
 		apiErr = ErrPanFSInvalidSymbolsFound
-	case PanFSInvalidBucketPath:
-		apiErr = ErrPanFSBucketPathNotValid
 
 	case BucketQuotaExceeded:
 		apiErr = ErrAdminBucketQuotaExceeded

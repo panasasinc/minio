@@ -90,23 +90,34 @@ func TestPANFSShutdown(t *testing.T) {
 // TestPANFSGetBucketInfo - test GetBucketInfo with healty and faulty disks
 func TestPANFSGetBucketInfo(t *testing.T) {
 	// Prepare for testing
-	bucketName := getRandomBucketName()
-	obj, disk := initPanFSWithBucket(bucketName, t)
+	disk := filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
 	defer os.RemoveAll(disk)
-	fs := obj.(*PANFSObjects)
 
-	err := obj.MakeBucketWithLocation(GlobalContext, "a", MakeBucketOptions{})
+	obj, err := initPanFSObjects(disk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fs := obj.(*PANFSObjects)
+	bucketName := "bucket"
+
+	err = obj.MakeBucketWithLocation(GlobalContext, "a", MakeBucketOptions{})
 	if !isSameType(err, BucketNameInvalid{}) {
 		t.Fatalf("Expecting error %v, got %s\"", BucketNameInvalid{}, err)
+	}
+
+	err = obj.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{
+		PanFSBucketPath: disk,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	info, err := fs.GetBucketInfo(GlobalContext, bucketName, BucketOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedPanFSBucketPath := pathJoin(disk, bucketName+"/")
-	if info.PanFSPath != expectedPanFSBucketPath {
-		t.Fatalf("wrong bucket panfs path, expected: %s, found: %s", expectedPanFSBucketPath, info.PanFSPath)
+	if info.PanFSPath != disk {
+		t.Fatalf("wrong bucket panfs path, expected: %s, found: %s", disk, info.PanFSPath)
 	}
 	// Test with non-existent bucket
 	_, err = fs.GetBucketInfo(GlobalContext, "a", BucketOptions{})
@@ -126,14 +137,23 @@ func TestPANFSGetBucketInfo(t *testing.T) {
 
 func TestPANFSPutObject(t *testing.T) {
 	// Prepare for tests
-	bucketName := getRandomBucketName()
-	objectName := getRandomObjectName()
-	obj, disk := initPanFSWithBucket(bucketName, t)
+	disk := filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
 	defer os.RemoveAll(disk)
+
+	obj, err := initPanFSObjects(disk)
+	if err != nil {
+		t.Fatal(err)
+	}
 	fs := obj.(*PANFSObjects)
+	bucketName := "bucket"
+	objectName := "1/2/3/4/object"
+
+	if err = fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: disk}); err != nil {
+		t.Fatal(err)
+	}
 
 	// With a regular object.
-	_, err := fs.PutObject(GlobalContext, bucketName+"non-existent", objectName, mustGetPutObjReader(t, bytes.NewReader([]byte("abcd")), int64(len("abcd")), "", ""), ObjectOptions{})
+	_, err = fs.PutObject(GlobalContext, bucketName+"non-existent", objectName, mustGetPutObjReader(t, bytes.NewReader([]byte("abcd")), int64(len("abcd")), "", ""), ObjectOptions{})
 	if err == nil {
 		t.Fatal("Unexpected should fail here, bucket doesn't exist")
 	}
@@ -170,6 +190,7 @@ func TestPANFSDeleteObject(t *testing.T) {
 	obj, disk := initPanFSWithBucket(bucketName, t)
 	defer os.RemoveAll(disk)
 
+	obj.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{})
 	obj.PutObject(GlobalContext, bucketName, objectName, mustGetPutObjReader(t, bytes.NewReader([]byte("abcd")), int64(len("abcd")), "", ""), ObjectOptions{})
 
 	// Test with invalid bucket name
@@ -205,33 +226,45 @@ func TestPANFSDeleteObject(t *testing.T) {
 // TestPANFSDeleteBucket - tests for fs DeleteBucket
 func TestPANFSDeleteBucket(t *testing.T) {
 	// Prepare for testing
-	bucketName := getRandomBucketName()
-	obj, disk := initPanFSWithBucket(bucketName, t)
+	disk := filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
 	defer os.RemoveAll(disk)
+
+	obj, err := initPanFSObjects(disk)
+	if err != nil {
+		t.Fatal(err)
+	}
 	fs := obj.(*PANFSObjects)
+	bucketName := "bucket"
+
+	err = obj.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: disk})
+	if err != nil {
+		t.Fatal("Unexpected error: ", err)
+	}
 
 	// Test with an invalid bucket name
-	if err := fs.DeleteBucket(GlobalContext, "fo", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
+	if err = fs.DeleteBucket(GlobalContext, "fo", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
 		t.Fatal("Unexpected error: ", err)
 	}
 
 	// Test with an not existing bucket
-	if err := fs.DeleteBucket(GlobalContext, "foobucket", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
+	if err = fs.DeleteBucket(GlobalContext, "foobucket", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
 		t.Fatal("Unexpected error: ", err)
 	}
 	// Test with a valid case
-	if err := fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{}); err != nil {
+	// Use the force flag here as there is .s3 hidden directory created inside the bucket dir
+	if err = fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{Force: true}); err != nil {
 		t.Fatal("Unexpected error: ", err)
 	}
-	// Make sure that panfs bucket dir is not deleted
+	// Make sure that panfs bucket dir deleted as well
 	panfsBucketDir := pathJoin(disk, bucketName)
-	if _, err := fsStatDir(GlobalContext, panfsBucketDir); err != nil {
-		t.Fatal("Unexpected error: ", err)
+	_, err = fsStatDir(GlobalContext, panfsBucketDir)
+	if !isSameType(err, errFileNotFound) {
+		t.Fatalf("Expected error type errFileNotFound, got %#v", err)
 	}
 
 	// Delete bucket should get error disk not found.
 	os.RemoveAll(disk)
-	if err := fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{}); err != nil {
+	if err = fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{}); err != nil {
 		if !isSameType(err, BucketNotFound{}) {
 			t.Fatal("Unexpected error: ", err)
 		}
@@ -341,60 +374,4 @@ func TestDotS3PrefixCheck(t *testing.T) {
 	}
 }
 
-// // TestPANFSDeleteObject - test fs.DeleteObject() with healthy and corrupted disks
-func TestPANFSMakeBucket(t *testing.T) {
-	// Prepare for tests
-	bucketName := getRandomBucketName()
-	obj, disk := initPanFSWithBucket("", t)
-	defer os.RemoveAll(disk)
-
-	fs := obj.(*PANFSObjects)
-
-	// Create bucket using non-existent panfs path
-	nonExistentBucketPath := pathJoin(disk, "nonExistentBucketPath")
-	err := fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: nonExistentBucketPath})
-	if !errors.Is(err, errDiskAccessDenied) {
-		t.Fatalf("Expected error %v, got %v", errDiskAccessDenied, err)
-	}
-
-	// Valid case
-	bucketPath := pathJoin(disk, bucketName)
-	if err := fsMkdir(GlobalContext, bucketPath); err != nil {
-		t.Fatal("Unexpected error: ", err)
-	}
-	if err := fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: bucketPath}); err != nil {
-		t.Fatal("Unexpected error: ", err)
-	}
-
-	// Attempt to create another bucket with the same panfs path
-	err = fs.MakeBucketWithLocation(GlobalContext, getRandomBucketName(), MakeBucketOptions{PanFSBucketPath: bucketPath})
-	if !errors.Is(err, PanFSInvalidBucketPath{BucketPath: bucketPath}) {
-		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: bucketPath}, err)
-	}
-
-	// Attempt to create bucket with the same name but different panfs path
-	anotherBucketPath := pathJoin(disk, nextSuffix())
-	if err := fsMkdir(GlobalContext, anotherBucketPath); err != nil {
-		t.Fatal("Unexpected error: ", err)
-	}
-	err = fs.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: anotherBucketPath})
-	if !errors.Is(err, BucketExists{Bucket: bucketName}) {
-		t.Fatalf("Expected error %v, got %v", BucketExists{Bucket: bucketName}, err)
-	}
-
-	// Attempt to create another bucket inside previously created bucket
-	innerBucketPath := pathJoin(bucketPath, "innerDir")
-	if err := fsMkdir(GlobalContext, innerBucketPath); err != nil {
-		t.Fatal("Unexpected error: ", err)
-	}
-	err = fs.MakeBucketWithLocation(GlobalContext, getRandomBucketName(), MakeBucketOptions{PanFSBucketPath: innerBucketPath})
-	if !errors.Is(err, PanFSInvalidBucketPath{BucketPath: innerBucketPath}) {
-		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: innerBucketPath}, err)
-	}
-
-	// Attempt to create a bucket on the top level of the existing one
-	err = fs.MakeBucketWithLocation(GlobalContext, getRandomBucketName(), MakeBucketOptions{PanFSBucketPath: disk})
-	if !errors.Is(err, PanFSInvalidBucketPath{BucketPath: disk}) {
-		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: disk}, err)
-	}
-}
+// TODO: add test cases for .s3 put/delete/copy operation - negative
