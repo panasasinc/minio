@@ -211,7 +211,7 @@ func panOSMkdirAll(dirPath string, perm os.FileMode, ownerID, groupID int) error
 
 	if j > 1 {
 		// Create parent.
-		if err = osMkdirAll(dirPath[:j-1], perm); err != nil {
+		if err = panOSMkdirAll(dirPath[:j-1], perm, ownerID, groupID); err != nil {
 			return err
 		}
 	}
