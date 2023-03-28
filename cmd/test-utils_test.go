@@ -45,7 +45,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"os/user"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -238,14 +237,6 @@ func preparePanFS(ctx context.Context) (obj ObjectLayer, fs string, err error) {
 func initPanFSObjects(fs string) (obj ObjectLayer, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	usr, err := user.Current()
-	if err != nil {
-		return nil, fmt.Errorf("Cannot find user: %w", err)
-	}
-
-	os.Setenv(config.EnvPanDefaultOwner, usr.Uid)
-	os.Setenv(config.EnvPanDefaultGroup, usr.Gid)
 
 	obj, err = NewPANFSObjectLayer(ctx, fs)
 	if err != nil {

@@ -248,7 +248,7 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 	uploadID := mustGetUUID()
 	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
 
-	err = panMkdirAll(uploadIDDir, fs.defaultDirMode, fs.defaultOwner, fs.defaultGroup)
+	err = mkdirAll(uploadIDDir, 0o755)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err
@@ -271,12 +271,7 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 		return nil, err
 	}
 
-	filepath := pathJoin(uploadIDDir, fs.metaJSONFile)
-	if err = ioutil.WriteFile(filepath, fsMetaBytes, fs.defaultObjMode); err != nil {
-		logger.LogIf(ctx, err)
-		return nil, err
-	}
-	if err = os.Chown(filepath, fs.defaultOwner, fs.defaultGroup); err != nil {
+	if err = ioutil.WriteFile(pathJoin(uploadIDDir, fs.metaJSONFile), fsMetaBytes, 0o666); err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err
 	}
@@ -359,7 +354,7 @@ func (fs *PANFSObjects) PutObjectPart(ctx context.Context, bucket, object, uploa
 	}
 
 	tmpPartPath := pathJoin(bucketPath, panfsS3TmpDir, fs.nodeDataSerial, uploadID+"."+mustGetUUID()+"."+strconv.Itoa(partID))
-	bytesWritten, err := panfsCreateFile(ctx, tmpPartPath, data, data.Size(), fs.defaultObjMode, fs.defaultOwner, fs.defaultGroup)
+	bytesWritten, err := fsCreateFile(ctx, tmpPartPath, data, data.Size())
 
 	// Delete temporary part in case of failure. If
 	// PutObjectPart succeeds then there would be nothing to
@@ -824,7 +819,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		return oi, toObjectErr(err, bucket, object)
 	}
 
-	err = panfsRenameFile(ctx, appendFilePath, pathJoin(bucketPath, object), fs.defaultObjMode, fs.defaultOwner, fs.defaultGroup)
+	err = panfsRenameFile(ctx, appendFilePath, pathJoin(bucketPath, object))
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return oi, toObjectErr(err, bucket, object)

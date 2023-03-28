@@ -22,14 +22,12 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/minio/minio/internal/config"
 	"github.com/minio/minio/internal/config/api"
 )
 
@@ -38,15 +36,7 @@ import (
 func initPanFSWithBucket(bucket string, t *testing.T) (obj ObjectLayer, disk string) {
 	disk = filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
 
-	usr, err := user.Current()
-	if err != nil {
-		t.Fatalf("Cannot find user: " + err.Error())
-	}
-
-	os.Setenv(config.EnvPanDefaultOwner, usr.Uid)
-	os.Setenv(config.EnvPanDefaultGroup, usr.Gid)
-
-	obj, err = initPanFSObjects(disk)
+	obj, err := initPanFSObjects(disk)
 	obj = obj.(*PANFSObjects)
 	if err != nil {
 		t.Fatalf("Cannot init PANFS backend: \"%v\"", err)

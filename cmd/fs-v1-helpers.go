@@ -344,58 +344,6 @@ func fsCreateFile(ctx context.Context, filePath string, reader io.Reader, falloc
 	return bytesWritten, nil
 }
 
-func panfsCreateFile(ctx context.Context, filePath string, reader io.Reader, fallocSize int64, objMode os.FileMode, ownerID, groupID int) (int64, error) {
-	if filePath == "" || reader == nil {
-		logger.LogIf(ctx, errInvalidArgument)
-		return 0, errInvalidArgument
-	}
-
-	if err := checkPathLength(filePath); err != nil {
-		logger.LogIf(ctx, err)
-		return 0, err
-	}
-
-	if err := mkdirAll(pathutil.Dir(filePath), 0o777); err != nil {
-		switch {
-		case osIsPermission(err):
-			return 0, errFileAccessDenied
-		case osIsExist(err):
-			return 0, errFileAccessDenied
-		case isSysErrIO(err):
-			return 0, errFaultyDisk
-		case isSysErrInvalidArg(err):
-			return 0, errUnsupportedDisk
-		case isSysErrNoSpace(err):
-			return 0, errDiskFull
-		}
-		return 0, err
-	}
-
-	flags := os.O_CREATE | os.O_WRONLY
-	if globalFSOSync {
-		flags |= os.O_SYNC
-	}
-	writer, err := lock.Open(filePath, flags, objMode)
-	if err != nil {
-		return 0, osErrToFileErr(err)
-	}
-	defer writer.Close()
-
-	err = os.Chown(filePath, ownerID, groupID)
-	if err != nil {
-		logger.LogIf(ctx, err)
-		return 0, err
-	}
-
-	bytesWritten, err := xioutil.Copy(writer, reader)
-	if err != nil {
-		logger.LogIf(ctx, err)
-		return 0, err
-	}
-
-	return bytesWritten, nil
-}
-
 // Renames source path to destination path, creates all the
 // missing parents if they don't exist.
 func fsRenameFile(ctx context.Context, sourcePath, destPath string) error {
@@ -418,7 +366,7 @@ func fsRenameFile(ctx context.Context, sourcePath, destPath string) error {
 
 // Renames source path to destination path, creates all the
 // missing parents if they don't exist.
-func panfsRenameFile(ctx context.Context, sourcePath, destPath string, mode os.FileMode, ownerID, groupID int) error {
+func panfsRenameFile(ctx context.Context, sourcePath, destPath string) error {
 	if err := checkPathLength(sourcePath); err != nil {
 		logger.LogIf(ctx, err)
 		return err
@@ -428,7 +376,7 @@ func panfsRenameFile(ctx context.Context, sourcePath, destPath string, mode os.F
 		return err
 	}
 
-	if err := panRenameFileAll(sourcePath, destPath, mode, ownerID, groupID); err != nil {
+	if err := panRenameFileAll(sourcePath, destPath); err != nil {
 		logger.LogIf(ctx, err)
 		return err
 	}
