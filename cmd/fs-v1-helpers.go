@@ -355,7 +355,6 @@ func panfsCreateFile(ctx context.Context, filePath string, reader io.Reader, fal
 		return 0, err
 	}
 
-	// This mode bits wasn't changed to param, because files create in temp folder
 	if err := mkdirAll(pathutil.Dir(filePath), 0o777); err != nil {
 		switch {
 		case osIsPermission(err):
