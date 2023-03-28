@@ -819,7 +819,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		return oi, toObjectErr(err, bucket, object)
 	}
 
-	err = panfsPublishFile(ctx, appendFilePath, pathJoin(bucketPath, object), fs.defaultObjMode, fs.defaultDirMode, fs.defaultOwner, fs.defaultGroup)
+	err = panfsPublishFile(appendFilePath, pathJoin(bucketPath, object), fs.defaultObjMode, fs.defaultDirMode, fs.defaultOwner, fs.defaultGroup)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return oi, toObjectErr(err, bucket, object)

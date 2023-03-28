@@ -1358,7 +1358,8 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 
 		// Entire object was written to the temp location, now it's safe to rename it to the actual location.
 		fsNSObjPath = pathJoin(bucketDir, object)
-		if err = panfsPublishFile(ctx, fsTmpObjPath, fsNSObjPath, fs.defaultObjMode, fs.defaultDirMode, fs.defaultOwner, fs.defaultGroup); err != nil {
+		if err = panfsPublishFile(fsTmpObjPath, fsNSObjPath, fs.defaultObjMode, fs.defaultDirMode, fs.defaultOwner, fs.defaultGroup); err != nil {
+			logger.LogIf(ctx, err)
 			return ObjectInfo{}, toObjectErr(err, bucket, object)
 		}
 	}
