@@ -27,9 +27,27 @@ import (
 	"github.com/minio/minio/internal/hash"
 )
 
+type configReader interface {
+	GetObjectNInfo(ctx context.Context, bucket, object string, rs *HTTPRangeSpec, h http.Header, lockType LockType, opts ObjectOptions) (reader *GetObjectReader, err error)
+}
+
+type configSaver interface {
+	PutObject(ctx context.Context, bucket, object string, data *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error)
+}
+
+type configDeleter interface {
+	DeleteObject(ctx context.Context, bucket, object string, opts ObjectOptions) (ObjectInfo, error)
+}
+
+type configAccessor interface {
+	configReader
+	configSaver
+	configDeleter
+}
+
 var errConfigNotFound = errors.New("config file not found")
 
-func readConfigWithMetadata(ctx context.Context, store objectIO, configFile string) ([]byte, ObjectInfo, error) {
+func readConfigWithMetadata(ctx context.Context, store configReader, configFile string) ([]byte, ObjectInfo, error) {
 	r, err := store.GetObjectNInfo(ctx, minioMetaBucket, configFile, nil, http.Header{}, readLock, ObjectOptions{})
 	if err != nil {
 		// Treat object not found as config not found.
@@ -51,17 +69,13 @@ func readConfigWithMetadata(ctx context.Context, store objectIO, configFile stri
 	return buf, r.ObjInfo, nil
 }
 
-func readConfig(ctx context.Context, store objectIO, configFile string) ([]byte, error) {
+func readConfig(ctx context.Context, store configReader, configFile string) ([]byte, error) {
 	buf, _, err := readConfigWithMetadata(ctx, store, configFile)
 	return buf, err
 }
 
-type objectDeleter interface {
-	DeleteObject(ctx context.Context, bucket, object string, opts ObjectOptions) (ObjectInfo, error)
-}
-
-func deleteConfig(ctx context.Context, objAPI objectDeleter, configFile string) error {
-	_, err := objAPI.DeleteObject(ctx, minioMetaBucket, configFile, ObjectOptions{
+func deleteConfig(ctx context.Context, deleter configDeleter, configFile string) error {
+	_, err := deleter.DeleteObject(ctx, minioMetaBucket, configFile, ObjectOptions{
 		DeletePrefix: true,
 	})
 	if err != nil && isErrObjectNotFound(err) {
@@ -70,7 +84,7 @@ func deleteConfig(ctx context.Context, objAPI objectDeleter, configFile string) 
 	return err
 }
 
-func saveConfig(ctx context.Context, store objectIO, configFile string, data []byte) error {
+func saveConfig(ctx context.Context, store configSaver, configFile string, data []byte) error {
 	hashReader, err := hash.NewReader(bytes.NewReader(data), int64(len(data)), "", getSHA256Hash(data), int64(len(data)))
 	if err != nil {
 		return err
