@@ -172,12 +172,13 @@ func (b *BucketMetadata) Load(ctx context.Context, api ObjectLayer, name string)
 	return err
 }
 
-// loadBucketMetadata loads and migrates to bucket metadata.
-func loadBucketMetadata(ctx context.Context, objectAPI ObjectLayer, bucket string) (BucketMetadata, error) {
+func loadBucketMetadataGeneral(ctx context.Context, objectAPI ObjectLayer, bucket string, failIfMissing bool) (BucketMetadata, error) {
 	b := newBucketMetadata(bucket)
 	err := b.Load(ctx, objectAPI, b.Name)
-	if err != nil && !errors.Is(err, errConfigNotFound) {
-		return b, err
+	if err != nil {
+		if failIfMissing || !errors.Is(err, errConfigNotFound) {
+			return b, err
+		}
 	}
 	if err == nil {
 		b.defaultTimestamps()
@@ -193,6 +194,15 @@ func loadBucketMetadata(ctx context.Context, objectAPI ObjectLayer, bucket strin
 	}
 
 	return b, nil
+}
+
+func loadBucketMetadataFailIfMissing(ctx context.Context, objectAPI ObjectLayer, bucket string) (BucketMetadata, error) {
+	return loadBucketMetadataGeneral(ctx, objectAPI, bucket, true)
+}
+
+// loadBucketMetadata loads and migrates to bucket metadata.
+func loadBucketMetadata(ctx context.Context, objectAPI ObjectLayer, bucket string) (BucketMetadata, error) {
+	return loadBucketMetadataGeneral(ctx, objectAPI, bucket, false)
 }
 
 // parseAllConfigs will parse all configs and populate the private fields.

@@ -206,6 +206,8 @@ func StartGateway(ctx *cli.Context, gw Gateway) {
 	// Register root CAs for remote ENVs
 	env.RegisterGlobalCAs(globalRootCAs)
 
+	globalBucketMetadataCache = NewBucketMetadataCache()
+
 	// Initialize all help
 	initHelp()
 

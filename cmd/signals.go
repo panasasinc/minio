@@ -98,6 +98,10 @@ func handleSignals() {
 				exit(stopProcess())
 			}
 		case confReloadSignal := <-globalConfReloadSignalCh:
+			if globalBucketMetadataCache != nil {
+				logger.Info("%s signal received. Dropping bucket metadata cache", strings.ToUpper(confReloadSignal.String()))
+				globalBucketMetadataCache.Drop()
+			}
 			logger.Info("%s signal received. Start reloading MinIO IAM sub-system", strings.ToUpper(confReloadSignal.String()))
 			// Reload IAM data from storage.
 			retryCtx, cancel := context.WithCancel(GlobalContext)

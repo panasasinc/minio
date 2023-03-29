@@ -485,25 +485,22 @@ func (fs *PANFSObjects) scanBucket(ctx context.Context, bucket string, cache dat
 
 // Bucket operations
 
-// loadBucketMetadata loads bucket metadata from the disk.
-// Returns an error when the bucket metadata file not found
-func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string) (BucketMetadata, error) {
-	b := newBucketMetadata(bucket)
-	err := b.Load(ctx, fs, b.Name)
-	if err != nil {
-		if errors.Is(err, errConfigNotFound) {
-			return b, BucketNotFound{Bucket: bucket}
-		}
-		return b, err
+func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string, failIfMissing bool) (BucketMetadata, error) {
+	var meta BucketMetadata
+	var err error
+	if meta, err = globalBucketMetadataCache.Get(bucket); err == nil {
+		return meta, err
 	}
-	b.defaultTimestamps()
-
-	// migrate unencrypted remote targets
-	if err := b.migrateTargetConfig(ctx, fs); err != nil {
-		return b, err
+	if failIfMissing {
+		meta, err = loadBucketMetadataFailIfMissing(ctx, fs, bucket)
+	} else {
+		meta, err = loadBucketMetadata(ctx, fs, bucket)
+	}
+	if err == nil {
+		globalBucketMetadataCache.Set(bucket, meta)
 	}
 
-	return b, nil
+	return meta, err
 }
 
 // getObjectMetadataPath returns path to the object metadata based on bucket path and object name
@@ -516,8 +513,11 @@ func (fs *PANFSObjects) getBucketPanFSPath(ctx context.Context, bucket string) (
 	if bucket != minioMetaBucket {
 		// Trim trailing slash if exists
 		bucket = strings.Trim(bucket, slashSeparator)
-		meta, err := fs.loadBucketMetadata(ctx, bucket)
+		meta, err := fs.loadBucketMetadata(ctx, bucket, true)
 		if err != nil {
+			if errors.Is(err, errConfigNotFound) {
+				return "", BucketNotFound{Bucket: bucket}
+			}
 			return "", err
 		}
 		path = meta.PanFSPath
@@ -601,6 +601,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	if err := meta.Save(ctx, fs); err != nil {
 		return toObjectErr(err, bucket)
 	}
+	globalBucketMetadataCache.Set(bucket, meta)
 
 	if fs.configAgent != nil {
 		if err := fs.configAgent.PutObject(pathJoin(panfsBucketListPrefix, bucket), nil); err != nil {
@@ -615,7 +616,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 
 // GetBucketPolicy - only needed for FS in NAS mode
 func (fs *PANFSObjects) GetBucketPolicy(ctx context.Context, bucket string) (*policy.Policy, error) {
-	meta, err := loadBucketMetadata(ctx, fs, bucket)
+	meta, err := fs.loadBucketMetadata(ctx, bucket, false)
 	if err != nil {
 		return nil, BucketPolicyNotFound{Bucket: bucket}
 	}
@@ -627,7 +628,7 @@ func (fs *PANFSObjects) GetBucketPolicy(ctx context.Context, bucket string) (*po
 
 // SetBucketPolicy - only needed for FS in NAS mode
 func (fs *PANFSObjects) SetBucketPolicy(ctx context.Context, bucket string, p *policy.Policy) error {
-	meta, err := loadBucketMetadata(ctx, fs, bucket)
+	meta, err := fs.loadBucketMetadata(ctx, bucket, false)
 	if err != nil {
 		return err
 	}
@@ -639,17 +640,29 @@ func (fs *PANFSObjects) SetBucketPolicy(ctx context.Context, bucket string, p *p
 	}
 	meta.PolicyConfigJSON = configData
 
-	return meta.Save(ctx, fs)
+	err = meta.Save(ctx, fs)
+	if err != nil {
+		return err
+	}
+
+	globalBucketMetadataCache.Set(bucket, meta)
+	return nil
 }
 
 // DeleteBucketPolicy - only needed for FS in NAS mode
 func (fs *PANFSObjects) DeleteBucketPolicy(ctx context.Context, bucket string) error {
-	meta, err := loadBucketMetadata(ctx, fs, bucket)
+	meta, err := fs.loadBucketMetadata(ctx, bucket, false)
 	if err != nil {
 		return err
 	}
 	meta.PolicyConfigJSON = nil
-	return meta.Save(ctx, fs)
+	err = meta.Save(ctx, fs)
+	if err != nil {
+		return err
+	}
+
+	globalBucketMetadataCache.Set(bucket, meta)
+	return nil
 }
 
 // GetBucketInfo - fetch bucket metadata info.
@@ -664,7 +677,7 @@ func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, opts B
 	}
 
 	createdTime := st.ModTime()
-	meta, err := loadBucketMetadata(ctx, fs, bucket)
+	meta, err := fs.loadBucketMetadata(ctx, bucket, false)
 	if err == nil {
 		createdTime = meta.Created
 	}
@@ -708,7 +721,7 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		if isReservedOrInvalidBucket(entry, false) {
 			continue
 		}
-		meta, err := fs.loadBucketMetadata(ctx, entry)
+		meta, err := fs.loadBucketMetadata(ctx, entry, true)
 		if err != nil {
 			continue
 		}
@@ -773,6 +786,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 
 	// Delete all bucket metadata.
 	deleteBucketMetadata(ctx, fs, bucket)
+	globalBucketMetadataCache.Delete(bucket)
 
 	if fs.configAgent != nil {
 		noLockID := ""
