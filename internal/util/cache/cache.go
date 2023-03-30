@@ -173,16 +173,40 @@ func (c *Cache) Put(ctx context.Context, id string, content []byte) {
 	c.totalBytes += len(content)
 }
 
+// Delete removes the item with the given id from the cache entirely
 func (c *Cache) Delete(ctx context.Context, id string) {
-	panic("Not implemented!")
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	entry, ok := c.l1.index[id]
+	if !ok {
+		return
+	}
+
+	heap.Remove(&c.l1.lfu, entry.lfuIndex)
+	delete(c.l1.index, entry.id)
 }
 
+// Delete moves the item with the given id from the LFU to the LRU cache.
+// This is equivalent to invalidating the item data but not removing the item's
+// metadata.
 func (c *Cache) Invalidate(ctx context.Context, id string) {
-	panic("Not implemented!")
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	l1Entry, ok := c.l1.index[id]
+	if !ok {
+		return
+	}
+	c.l1RemoveEntry(ctx, l1Entry.lfuIndex)
 }
 
 func (c *Cache) l1EvictLocked(ctx context.Context) {
-	l1Entry := heap.Pop(&c.l1.lfu).(*l1CacheEntry)
+	c.l1RemoveEntry(ctx, 0)
+}
+
+func (c *Cache) l1RemoveEntry(ctx context.Context, entryIdx int) {
+	l1Entry := heap.Remove(&c.l1.lfu, entryIdx).(*l1CacheEntry)
 	if l1Entry == nil {
 		return
 	}
