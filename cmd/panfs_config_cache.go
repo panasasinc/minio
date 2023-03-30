@@ -74,7 +74,7 @@ func (cca *CachingConfigAccessor) GetObjectNInfo(ctx context.Context, bucket, ob
 }
 
 func (cca *CachingConfigAccessor) PutObject(ctx context.Context, bucket, object string, data *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
-	// Instead of unwraping the data and re-wrapping it for storage, let's
+	// Instead of unwrapping the data and re-wrapping it for storage, let's
 	// just invalidate the cache entry.
 	key := pathJoin(bucket, object)
 	cca.cache.Invalidate(ctx, key)
