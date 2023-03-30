@@ -173,6 +173,14 @@ func (c *Cache) Put(ctx context.Context, id string, content []byte) {
 	c.totalBytes += len(content)
 }
 
+func (c *Cache) Delete(ctx context.Context, id string) {
+	panic("Not implemented!")
+}
+
+func (c *Cache) Invalidate(ctx context.Context, id string) {
+	panic("Not implemented!")
+}
+
 func (c *Cache) l1EvictLocked(ctx context.Context) {
 	l1Entry := heap.Pop(&c.l1.lfu).(*l1CacheEntry)
 	if l1Entry == nil {
