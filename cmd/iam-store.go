@@ -1875,18 +1875,13 @@ func (store *IAMStoreSys) ListServiceAccounts(ctx context.Context, accessKey str
 	return serviceAccounts, nil
 }
 
-var regexUserGroup = regexp.MustCompile("^[1-9][0-9]*$")
+var regexUser = regexp.MustCompile("^uid:([1-9][0-9]*)$")
+var regexGroup = regexp.MustCompile("^gid:([1-9][0-9]*)$")
 
 // AddUser - adds/updates long term user account to storage.
 func (store *IAMStoreSys) AddUser(ctx context.Context, accessKey string, ureq madmin.AddOrUpdateUserReq) (updatedAt time.Time, err error) {
 	cache := store.lock()
 	defer store.unlock()
-	if !regexUserGroup.MatchString(ureq.MappedSysUser) {
-		return updatedAt, errors.New("user id doesn't follow regular expression")
-	}
-	if !regexUserGroup.MatchString(ureq.MappedSysGroup) {
-		return updatedAt, errors.New("group id doesn't follow regular expression")
-	}
 
 	cache.updatedAt = time.Now()
 
@@ -1908,8 +1903,12 @@ func (store *IAMStoreSys) AddUser(ctx context.Context, accessKey string, ureq ma
 			return auth.AccountOff
 		}(),
 	})
-	u.MappedSysUser = ureq.MappedSysUser
-	u.MappedSysGroup = ureq.MappedSysGroup
+	if match := regexUser.FindStringSubmatch(ureq.MappedSysUser); len(match) == 2 {
+		u.MappedSysUser = match[1]
+	}
+	if match := regexGroup.FindStringSubmatch(ureq.MappedSysGroup); len(match) == 2 {
+		u.MappedSysGroup = match[1]
+	}
 
 	if err := store.saveUserIdentity(ctx, accessKey, regUser, u); err != nil {
 		return updatedAt, err
