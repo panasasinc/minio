@@ -104,7 +104,8 @@ type PANFSObjects struct {
 	tmpDirsCount     uint64
 	currentTmpFolder uint64
 
-	configAgent *panconfig.Client
+	configAgent         *panconfig.Client
+	bucketMetadataCache *CachingConfigAccessor
 
 	defaultDirMode os.FileMode
 	defaultObjMode os.FileMode
@@ -230,6 +231,7 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 		defaultOwner:   defaultOwner,
 		defaultGroup:   defaultGroup,
 	}
+	fs.bucketMetadataCache = newCachingConfigAccessor(fs)
 
 	// Once the filesystem has initialized hold the read lock for
 	// the life time of the server. This is done to ensure that under
@@ -495,7 +497,7 @@ func (fs *PANFSObjects) getBucketPanFSPath(ctx context.Context, bucket string) (
 	if bucket != minioMetaBucket {
 		// Trim trailing slash if exists
 		bucket = strings.Trim(bucket, slashSeparator)
-		meta, err := loadBucketMetadataFailIfMissing(ctx, fs, bucket)
+		meta, err := loadBucketMetadataFailIfMissing(ctx, fs.bucketMetadataCache, bucket)
 		if err != nil {
 			if errors.Is(err, errConfigNotFound) {
 				return "", BucketNotFound{Bucket: bucket}
@@ -579,7 +581,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	// Save panfs path with trailing slash
 	meta.PanFSPath = retainSlash(bucketPanFSPath)
 
-	if err := meta.Save(ctx, fs); err != nil {
+	if err := meta.Save(ctx, fs.bucketMetadataCache); err != nil {
 		return toObjectErr(err, bucket)
 	}
 
@@ -596,7 +598,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 
 // GetBucketPolicy - only needed for FS in NAS mode
 func (fs *PANFSObjects) GetBucketPolicy(ctx context.Context, bucket string) (*policy.Policy, error) {
-	meta, err := loadBucketMetadata(ctx, fs, bucket)
+	meta, err := loadBucketMetadata(ctx, fs.bucketMetadataCache, bucket)
 	if err != nil {
 		return nil, BucketPolicyNotFound{Bucket: bucket}
 	}
@@ -608,7 +610,7 @@ func (fs *PANFSObjects) GetBucketPolicy(ctx context.Context, bucket string) (*po
 
 // SetBucketPolicy - only needed for FS in NAS mode
 func (fs *PANFSObjects) SetBucketPolicy(ctx context.Context, bucket string, p *policy.Policy) error {
-	meta, err := loadBucketMetadata(ctx, fs, bucket)
+	meta, err := loadBucketMetadata(ctx, fs.bucketMetadataCache, bucket)
 	if err != nil {
 		return err
 	}
@@ -625,7 +627,7 @@ func (fs *PANFSObjects) SetBucketPolicy(ctx context.Context, bucket string, p *p
 
 // DeleteBucketPolicy - only needed for FS in NAS mode
 func (fs *PANFSObjects) DeleteBucketPolicy(ctx context.Context, bucket string) error {
-	meta, err := loadBucketMetadata(ctx, fs, bucket)
+	meta, err := loadBucketMetadata(ctx, fs.bucketMetadataCache, bucket)
 	if err != nil {
 		return err
 	}
@@ -645,7 +647,7 @@ func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, opts B
 	}
 
 	createdTime := st.ModTime()
-	meta, err := loadBucketMetadata(ctx, fs, bucket)
+	meta, err := loadBucketMetadata(ctx, fs.bucketMetadataCache, bucket)
 	if err == nil {
 		createdTime = meta.Created
 	}
@@ -689,7 +691,7 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		if isReservedOrInvalidBucket(entry, false) {
 			continue
 		}
-		meta, err := loadBucketMetadataFailIfMissing(ctx, fs, entry)
+		meta, err := loadBucketMetadataFailIfMissing(ctx, fs.bucketMetadataCache, entry)
 		if err != nil {
 			continue
 		}
@@ -753,7 +755,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 	fsRemoveAll(ctx, deletePath)
 
 	// Delete all bucket metadata.
-	deleteBucketMetadata(ctx, fs, bucket)
+	deleteBucketMetadata(ctx, fs.bucketMetadataCache, bucket)
 
 	if fs.configAgent != nil {
 		noLockID := ""
