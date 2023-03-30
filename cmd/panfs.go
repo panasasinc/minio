@@ -485,27 +485,6 @@ func (fs *PANFSObjects) scanBucket(ctx context.Context, bucket string, cache dat
 
 // Bucket operations
 
-// loadBucketMetadata loads bucket metadata from the disk.
-// Returns an error when the bucket metadata file not found
-func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string) (BucketMetadata, error) {
-	b := newBucketMetadata(bucket)
-	err := b.Load(ctx, fs, b.Name)
-	if err != nil {
-		if errors.Is(err, errConfigNotFound) {
-			return b, BucketNotFound{Bucket: bucket}
-		}
-		return b, err
-	}
-	b.defaultTimestamps()
-
-	// migrate unencrypted remote targets
-	if err := b.migrateTargetConfig(ctx, fs); err != nil {
-		return b, err
-	}
-
-	return b, nil
-}
-
 // getObjectMetadataPath returns path to the object metadata based on bucket path and object name
 func (fs *PANFSObjects) getObjectMetadataPath(bucketDir, object string) string {
 	return pathJoin(bucketDir, panfsS3MetadataDir, object)
@@ -516,8 +495,11 @@ func (fs *PANFSObjects) getBucketPanFSPath(ctx context.Context, bucket string) (
 	if bucket != minioMetaBucket {
 		// Trim trailing slash if exists
 		bucket = strings.Trim(bucket, slashSeparator)
-		meta, err := fs.loadBucketMetadata(ctx, bucket)
+		meta, err := loadBucketMetadataFailIfMissing(ctx, fs, bucket)
 		if err != nil {
+			if errors.Is(err, errConfigNotFound) {
+				return "", BucketNotFound{Bucket: bucket}
+			}
 			return "", err
 		}
 		path = meta.PanFSPath
@@ -707,7 +689,7 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		if isReservedOrInvalidBucket(entry, false) {
 			continue
 		}
-		meta, err := fs.loadBucketMetadata(ctx, entry)
+		meta, err := loadBucketMetadataFailIfMissing(ctx, fs, entry)
 		if err != nil {
 			continue
 		}
