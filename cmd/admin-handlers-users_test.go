@@ -221,7 +221,7 @@ func (s *TestSuiteIAM) TestUserCreate(c *check) {
 
 	// 1. Create a user.
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err := s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err := s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -251,7 +251,7 @@ func (s *TestSuiteIAM) TestUserCreate(c *check) {
 
 	// 3.10. Check that user's password can be updated.
 	_, newSecretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, newSecretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, newSecretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to update user's secret key: %v", err)
 	}
@@ -317,7 +317,7 @@ func (s *TestSuiteIAM) TestUserPolicyEscalationBug(c *check) {
 
 	// 2. Create a user, associate policy and verify access
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -460,7 +460,7 @@ func (s *TestSuiteIAM) TestAddServiceAccountPerms(c *check) {
 
 	// 3. Create a user, associate policy and verify access
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -561,7 +561,7 @@ func (s *TestSuiteIAM) TestPolicyCreate(c *check) {
 
 	// 3. Create a user, associate policy and verify access
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -705,7 +705,7 @@ func (s *TestSuiteIAM) TestGroupAddRemove(c *check) {
 	}
 
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -865,7 +865,7 @@ func (s *TestSuiteIAM) TestServiceAccountOpsByUser(c *check) {
 	}
 
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -946,7 +946,7 @@ func (s *TestSuiteIAM) TestServiceAccountOpsByAdmin(c *check) {
 	}
 
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -1038,7 +1038,7 @@ func (s *TestSuiteIAM) TestAccMgmtPlugin(c *check) {
 
 	// 1. Create a user.
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -1144,7 +1144,7 @@ func (c *check) mustCreateIAMUser(ctx context.Context, admClnt *madmin.AdminClie
 	c.Helper()
 	randUser := mustGetUUID()
 	randPass := mustGetUUID()
-	err := admClnt.AddUser(ctx, randUser, randPass)
+	err := admClnt.AddUser(ctx, randUser, randPass, "", "")
 	if err != nil {
 		c.Fatalf("should be able to create a user: %v", err)
 	}
@@ -1167,7 +1167,7 @@ func (c *check) mustNotCreateIAMUser(ctx context.Context, admClnt *madmin.AdminC
 	c.Helper()
 	randUser := mustGetUUID()
 	randPass := mustGetUUID()
-	err := admClnt.AddUser(ctx, randUser, randPass)
+	err := admClnt.AddUser(ctx, randUser, randPass, "", "")
 	if err == nil {
 		c.Fatalf("should not be able to create a user")
 	}

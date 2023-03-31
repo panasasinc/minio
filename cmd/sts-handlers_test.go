@@ -131,7 +131,7 @@ func (s *TestSuiteIAM) TestSTSWithTags(c *check) {
 	}
 
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -219,7 +219,7 @@ func (s *TestSuiteIAM) TestSTS(c *check) {
 	}
 
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
@@ -301,7 +301,7 @@ func (s *TestSuiteIAM) TestSTSWithGroupPolicy(c *check) {
 	}
 
 	accessKey, secretKey := mustGenerateCredentials(c)
-	err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+	err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 	if err != nil {
 		c.Fatalf("Unable to set user: %v", err)
 	}
