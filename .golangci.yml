@@ -7,10 +7,6 @@ linters-settings:
       - name: unused-parameter
         severity: warning
         disabled: true
-      - name: function-result-limit
-        severity: warning
-        disabled: false
-        arguments: [10]
 
   misspell:
     locale: US
