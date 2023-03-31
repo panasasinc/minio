@@ -256,8 +256,8 @@ func initFSObjects(disk string, t *testing.T) (obj ObjectLayer) {
 		t.Fatalf("Cannot find user: " + err.Error())
 	}
 
-	os.Setenv(config.EnvPanDefaultOwner, usr.Uid)
-	os.Setenv(config.EnvPanDefaultGroup, usr.Gid)
+	t.Setenv(config.EnvPanDefaultOwner, usr.Uid)
+	t.Setenv(config.EnvPanDefaultGroup, usr.Gid)
 
 	obj, _, err = initObjectLayer(context.Background(), mustGetPoolEndpoints(disk))
 	if err != nil {

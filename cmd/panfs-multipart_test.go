@@ -41,8 +41,8 @@ func initPanFSWithBucket(bucket string, t *testing.T) (obj ObjectLayer, disk str
 		t.Fatalf("Cannot find user: " + err.Error())
 	}
 
-	os.Setenv(config.EnvPanDefaultOwner, usr.Uid)
-	os.Setenv(config.EnvPanDefaultGroup, usr.Gid)
+	t.Setenv(config.EnvPanDefaultOwner, usr.Uid)
+	t.Setenv(config.EnvPanDefaultGroup, usr.Gid)
 
 	defer func() {
 		if err != nil {
