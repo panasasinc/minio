@@ -241,19 +241,10 @@ func TestPANFSDeleteBucket(t *testing.T) {
 // TestPANFSListBuckets - tests for fs ListBuckets
 func TestPANFSListBuckets(t *testing.T) {
 	// Prepare for tests
-	disk := filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
-	defer os.RemoveAll(disk)
-
-	obj, err := initPanFSObjects(disk)
-	if err != nil {
-		t.Fatal(err)
-	}
+	bucketName := getRandomBucketName()
+	obj, disk := initPanFSWithBucket(bucketName, t)
 	fs := obj.(*PANFSObjects)
-
-	bucketName := "bucket"
-	if err := obj.MakeBucketWithLocation(GlobalContext, bucketName, MakeBucketOptions{PanFSBucketPath: disk}); err != nil {
-		t.Fatal("Unexpected error: ", err)
-	}
+	defer os.RemoveAll(disk)
 
 	// Create a bucket with invalid name
 	if err := os.MkdirAll(pathJoin(fs.fsPath, "vo^"), 0o777); err != nil {
