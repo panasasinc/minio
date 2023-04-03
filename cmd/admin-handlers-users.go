@@ -144,6 +144,7 @@ func (a adminAPIHandlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		allCredentials[k] = v
 	}
 
+	// No need to change anything for parsing fields MappedSysUser/MappedSysGroup
 	// Marshal the response
 	data, err := json.Marshal(allCredentials)
 	if err != nil {
@@ -208,6 +209,7 @@ func (a adminAPIHandlers) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// No need to change anything for parsing fields MappedSysUser/MappedSysGroup
 	data, err := json.Marshal(userInfo)
 	if err != nil {
 		writeErrorResponseJSON(ctx, w, toAdminAPIErr(ctx, err), r.URL)
@@ -501,6 +503,7 @@ func (a adminAPIHandlers) AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// No need to change anything for parsing fields MappedSysUser/MappedSysGroup
 	var ureq madmin.AddOrUpdateUserReq
 	if err = json.Unmarshal(configBytes, &ureq); err != nil {
 		logger.LogIf(ctx, err)
@@ -1670,6 +1673,10 @@ func (a adminAPIHandlers) ExportIAM(w http.ResponseWriter, r *http.Request) {
 				userAccounts[u] = madmin.AddOrUpdateUserReq{
 					SecretKey: uid.Credentials.SecretKey,
 					Status:    status,
+
+					// For ImportIAM
+					MappedSysUser:  uid.MappedSysUser,
+					MappedSysGroup: uid.MappedSysGroup,
 				}
 			}
 			userData, err := json.Marshal(userAccounts)

@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -156,6 +157,9 @@ type UserIdentity struct {
 	Version     int              `json:"version"`
 	Credentials auth.Credentials `json:"credentials"`
 	UpdatedAt   time.Time        `json:"updatedAt,omitempty"`
+
+	MappedSysUser  string `json:"sysUser,omitempty"`
+	MappedSysGroup string `json:"sysGroup,omitempty"`
 }
 
 func newUserIdentity(cred auth.Credentials) UserIdentity {
@@ -1246,6 +1250,9 @@ func (store *IAMStoreSys) GetUsers() map[string]madmin.UserInfo {
 			}(),
 			MemberOf:  cache.iamUserGroupMemberships[k].ToSlice(),
 			UpdatedAt: cache.iamUserPolicyMap[k].UpdatedAt,
+
+			MappedSysUser:  u.MappedSysUser,
+			MappedSysGroup: u.MappedSysGroup,
 		}
 	}
 
@@ -1277,9 +1284,10 @@ func (store *IAMStoreSys) GetUserInfo(name string) (u madmin.UserInfo, err error
 		// If the user has a mapped policy or is a member of a group, we
 		// return that info. Otherwise we return error.
 		var groups []string
+		var mappedSysUser, mappedSysGroup string
 		for _, v := range cache.iamUsersMap {
 			if v.Credentials.ParentUser == name {
-				groups = v.Credentials.Groups
+				groups, mappedSysUser, mappedSysGroup = v.Credentials.Groups, v.MappedSysUser, v.MappedSysGroup
 				break
 			}
 		}
@@ -1291,6 +1299,9 @@ func (store *IAMStoreSys) GetUserInfo(name string) (u madmin.UserInfo, err error
 			PolicyName: mappedPolicy.Policies,
 			MemberOf:   groups,
 			UpdatedAt:  mappedPolicy.UpdatedAt,
+
+			MappedSysUser:  mappedSysUser,
+			MappedSysGroup: mappedSysGroup,
 		}, nil
 	}
 
@@ -1313,6 +1324,9 @@ func (store *IAMStoreSys) GetUserInfo(name string) (u madmin.UserInfo, err error
 		}(),
 		MemberOf:  cache.iamUserGroupMemberships[name].ToSlice(),
 		UpdatedAt: cache.iamUserPolicyMap[name].UpdatedAt,
+
+		MappedSysUser:  ui.MappedSysUser,
+		MappedSysGroup: ui.MappedSysGroup,
 	}, nil
 }
 
@@ -1861,6 +1875,11 @@ func (store *IAMStoreSys) ListServiceAccounts(ctx context.Context, accessKey str
 	return serviceAccounts, nil
 }
 
+var (
+	regexUser  = regexp.MustCompile("^uid:([1-9][0-9]*)$")
+	regexGroup = regexp.MustCompile("^gid:([1-9][0-9]*)$")
+)
+
 // AddUser - adds/updates long term user account to storage.
 func (store *IAMStoreSys) AddUser(ctx context.Context, accessKey string, ureq madmin.AddOrUpdateUserReq) (updatedAt time.Time, err error) {
 	cache := store.lock()
@@ -1886,6 +1905,12 @@ func (store *IAMStoreSys) AddUser(ctx context.Context, accessKey string, ureq ma
 			return auth.AccountOff
 		}(),
 	})
+	if match := regexUser.FindStringSubmatch(ureq.MappedSysUser); len(match) == 2 {
+		u.MappedSysUser = match[1]
+	}
+	if match := regexGroup.FindStringSubmatch(ureq.MappedSysGroup); len(match) == 2 {
+		u.MappedSysGroup = match[1]
+	}
 
 	if err := store.saveUserIdentity(ctx, accessKey, regUser, u); err != nil {
 		return updatedAt, err
@@ -1947,6 +1972,7 @@ func (store *IAMStoreSys) UpdateUserIdentity(ctx context.Context, cred auth.Cred
 		userType = stsUser
 	}
 	ui := newUserIdentity(cred)
+	// Overwrites user identity, so we'll lose user/owner in case of ldap turned on!!
 	// Overwrite the user identity here. As store should be
 	// atomic, it shouldn't cause any corruption.
 	if err := store.saveUserIdentity(ctx, cred.AccessKey, userType, ui); err != nil {

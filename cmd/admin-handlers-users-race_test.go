@@ -115,7 +115,7 @@ func (s *TestSuiteIAM) TestDeleteUserRace(c *check) {
 	secretKeys := make([]string, userCount)
 	for i := 0; i < userCount; i++ {
 		accessKey, secretKey := mustGenerateCredentials(c)
-		err = s.adm.SetUser(ctx, accessKey, secretKey, madmin.AccountEnabled)
+		err = s.adm.SetUser(ctx, accessKey, secretKey, "", "", madmin.AccountEnabled)
 		if err != nil {
 			c.Fatalf("Unable to set user: %v", err)
 		}
