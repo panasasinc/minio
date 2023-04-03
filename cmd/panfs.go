@@ -198,11 +198,15 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 	if err != nil {
 		return nil, fmt.Errorf("can't parse default obj mode Error: %w", err)
 	}
-	defaultOwner, err := strconv.Atoi(env.Get(config.EnvPanDefaultOwner, "0"))
+	usr, err := user.Current()
+	if err != nil {
+		return nil, fmt.Errorf("cannot find user: %w", err)
+	}
+	defaultOwner, err := strconv.Atoi(env.Get(config.EnvPanDefaultOwner, usr.Uid))
 	if err != nil {
 		return nil, fmt.Errorf("can't parse default obj mode Error: %w", err)
 	}
-	defaultGroup, err := strconv.Atoi(env.Get(config.EnvPanDefaultGroup, "0"))
+	defaultGroup, err := strconv.Atoi(env.Get(config.EnvPanDefaultGroup, usr.Gid))
 	if err != nil {
 		return nil, fmt.Errorf("can't parse default obj mode Error: %w", err)
 	}
