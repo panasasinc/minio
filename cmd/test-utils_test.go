@@ -251,15 +251,7 @@ func initPanFSObjects(fs string) (obj ObjectLayer, err error) {
 
 // Initialize FS objects.
 func initFSObjects(disk string, t *testing.T) (obj ObjectLayer) {
-	usr, err := user.Current()
-	if err != nil {
-		t.Fatalf("Cannot find user: " + err.Error())
-	}
-
-	os.Setenv(config.EnvPanDefaultOwner, usr.Uid)
-	os.Setenv(config.EnvPanDefaultGroup, usr.Gid)
-
-	obj, _, err = initObjectLayer(context.Background(), mustGetPoolEndpoints(disk))
+	obj, _, err := initObjectLayer(context.Background(), mustGetPoolEndpoints(disk))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1605,7 +1597,7 @@ func initAPIHandlerTest(ctx context.Context, obj ObjectLayer, endpoints []string
 	err := obj.MakeBucketWithLocation(context.Background(), bucketName, opts)
 	if err != nil {
 		// failed to create newbucket, return err.
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to create newbucket: %v", err)
 	}
 	// Register the API end points with Erasure object layer.
 	// Registering only the GetObject handler.
@@ -1863,6 +1855,15 @@ func ExecPanFSObjectLayerAPITest(t *testing.T, objAPITest objAPITestType, endpoi
 	// set globalIsGateway true and globalGatewayName to PANFS
 	globalIsGateway = true
 	globalGatewayName = PANFSBackendGateway
+
+	// Setup default user and group.
+	usr, err := user.Current()
+	if err != nil {
+		t.Fatalf("Cannot find user: " + err.Error())
+	}
+
+	t.Setenv(config.EnvPanDefaultOwner, usr.Uid)
+	t.Setenv(config.EnvPanDefaultGroup, usr.Gid)
 
 	objLayer, fsDir, err := preparePanFS(ctx)
 	globalPanFSDefaultBucketPath = fsDir
