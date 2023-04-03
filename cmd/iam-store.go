@@ -1875,8 +1875,10 @@ func (store *IAMStoreSys) ListServiceAccounts(ctx context.Context, accessKey str
 	return serviceAccounts, nil
 }
 
-var regexUser = regexp.MustCompile("^uid:([1-9][0-9]*)$")
-var regexGroup = regexp.MustCompile("^gid:([1-9][0-9]*)$")
+var (
+	regexUser  = regexp.MustCompile("^uid:([1-9][0-9]*)$")
+	regexGroup = regexp.MustCompile("^gid:([1-9][0-9]*)$")
+)
 
 // AddUser - adds/updates long term user account to storage.
 func (store *IAMStoreSys) AddUser(ctx context.Context, accessKey string, ureq madmin.AddOrUpdateUserReq) (updatedAt time.Time, err error) {
