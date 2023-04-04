@@ -764,7 +764,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 	}
 
 	// only remove .s3 directory
-	deletePath := path.Join(path.Dir(bucketDir), bucket+"."+mustGetUUID())
+	deletePath := path.Join(bucketDir, bucket+"."+mustGetUUID())
 	if err = Rename(path.Join(bucketDir, panfsMetaDir), deletePath); err != nil {
 		return toObjectErr(err, bucket)
 	}
