@@ -57,7 +57,6 @@ import (
 
 const (
 	panfsBucketListPrefix     = "buckets"
-	panfsObjectsPrefix        = "data"
 	panfsConfigAgentNamespace = "s3"
 )
 
@@ -966,8 +965,9 @@ func (fs *PANFSObjects) GetObjectNInfo(ctx context.Context, bucket, object strin
 	var readCloser io.ReadCloser
 	var size int64
 	if fs.isConfigAgentObject(bucket, object) {
-		objectName := pathJoin(panfsObjectsPrefix, bucket, object)
-		readCloser, objectInfo, err := fs.configAgent.GetObject(objectName)
+		var objectInfo *panconfig.ObjectInfo
+		objectName := pathJoin(bucket, object)
+		readCloser, objectInfo, err = fs.configAgent.GetObject(objectName)
 		if err == nil {
 			size = objectInfo.Size()
 			io.Copy(io.Discard, io.LimitReader(readCloser, off))
@@ -1086,7 +1086,7 @@ func (fs *PANFSObjects) getObjectInfoNoFSLock(ctx context.Context, bucket, objec
 	// Stat the file to get file size.
 	var fi os.FileInfo
 	if fs.isConfigAgentObject(bucket, object) {
-		fi, err = fs.configAgent.GetObjectInfo(pathJoin(panfsObjectsPrefix, bucket, object))
+		fi, err = fs.configAgent.GetObjectInfo(pathJoin(bucket, object))
 	} else {
 		fi, err = fsStatFile(ctx, pathJoin(bucketDir, object))
 	}
@@ -1144,7 +1144,7 @@ func (fs *PANFSObjects) getObjectInfo(ctx context.Context, bucket, object string
 	// Stat the file to get file size.
 	var fi os.FileInfo
 	if fs.isConfigAgentObject(bucket, object) {
-		fi, err = fs.configAgent.GetObjectInfo(pathJoin(panfsObjectsPrefix, bucket, object))
+		fi, err = fs.configAgent.GetObjectInfo(pathJoin(bucket, object))
 	} else {
 		fi, err = fsStatFile(ctx, pathJoin(bucketDir, object))
 	}
@@ -1335,7 +1335,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	var fsNSObjPath string
 
 	if fs.isConfigAgentObject(bucket, object) {
-		fsNSObjPath = pathJoin(panfsObjectsPrefix, bucket, object)
+		fsNSObjPath = pathJoin(bucket, object)
 		retErr = fs.configAgent.PutObject(fsNSObjPath, data)
 		if retErr != nil {
 			return ObjectInfo{}, retErr
@@ -1378,7 +1378,7 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 	// Stat the file to fetch timestamp, size.
 	var fi os.FileInfo
 	if fs.isConfigAgentObject(bucket, object) {
-		fi, err = fs.configAgent.GetObjectInfo(pathJoin(panfsObjectsPrefix, bucket, object))
+		fi, err = fs.configAgent.GetObjectInfo(pathJoin(bucket, object))
 	} else {
 		fi, err = fsStatFile(ctx, fsNSObjPath)
 	}
@@ -1470,7 +1470,7 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 
 	// Delete the object.
 	if fs.isConfigAgentObject(bucket, object) {
-		objectName := pathJoin(panfsObjectsPrefix, bucket, object)
+		objectName := pathJoin(bucket, object)
 		noLock := ""
 		err = fs.configAgent.DeleteObject(objectName, noLock)
 	} else {
@@ -1574,7 +1574,7 @@ func (fs *PANFSObjects) listDirFactory() ListDirFunc {
 		}
 		var agentEntries []string
 		if fs.configAgent != nil {
-			prefix := pathJoin(panfsObjectsPrefix, bucket, prefixDir)
+			prefix := pathJoin(bucket, prefixDir)
 			agentEntries, err = fs.configAgent.GetObjectsList(prefix)
 			if err != nil {
 				return false, nil, false
@@ -1614,7 +1614,7 @@ func (fs *PANFSObjects) filterOutPanFSS3Dir(entries []string) (filtered []string
 // is also an empty directory in the PanFS backend.
 func (fs *PANFSObjects) isObjectDir(bucketDir, prefix string) bool {
 	if fs.configAgent != nil {
-		entries, err := fs.configAgent.GetObjectsList(pathJoin(panfsObjectsPrefix, bucketDir, prefix, slashSeparator))
+		entries, err := fs.configAgent.GetObjectsList(pathJoin(bucketDir, prefix, slashSeparator))
 		return err != nil && len(entries) == 0
 	}
 	entries, err := readDirN(pathJoin(bucketDir, prefix), 1)
