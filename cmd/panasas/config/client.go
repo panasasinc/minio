@@ -13,10 +13,7 @@ import (
 	"strings"
 )
 
-const (
-	panasasHTTPS3PrefixHeader   string = "x-panasas-s3-prefix"
-	panasasHTTPS3MetadataHeader string = "Panasas-Config-Object-Metadata"
-)
+const panasasHTTPS3MetadataHeader string = "Panasas-Config-Object-Metadata"
 
 // ErrNotFound informs that the requested object has not been found by the
 // config agent.
@@ -136,7 +133,9 @@ func (c *Client) GetObjectsList(prefix string) ([]string, error) {
 		return []string{}, err
 	}
 
-	req.Header.Set(panasasHTTPS3PrefixHeader, prefix)
+	q := req.URL.Query()
+	q.Add("prefix", prefix)
+	req.URL.RawQuery = q.Encode()
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -205,7 +204,7 @@ func (c *Client) GetObject(objectName string) (dataReader io.ReadCloser, oi *Obj
 	}
 	if contentType != expectedContentType {
 		err = ErrUnexpectedContentType(contentType)
-		return
+		return nil, nil, err
 	}
 
 	metadata := resp.Header.Get(panasasHTTPS3MetadataHeader)
