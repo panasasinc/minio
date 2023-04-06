@@ -496,7 +496,9 @@ func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string, f
 	} else {
 		meta, err = loadBucketMetadata(ctx, fs, bucket)
 	}
-	globalBucketMetadataCache.Set(bucket, meta)
+	if err != nil {
+		globalBucketMetadataCache.Set(bucket, meta)
+	}
 
 	return meta, err
 }
