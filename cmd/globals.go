@@ -376,6 +376,9 @@ var (
 	// MinIO client
 	globalMinioClient *minio.Client
 
+	// Bucket metadata cache
+	globalBucketMetadataCache *BucketMetadataCache
+
 	// Add new variable global values here.
 )
 

@@ -104,8 +104,7 @@ type PANFSObjects struct {
 	tmpDirsCount     uint64
 	currentTmpFolder uint64
 
-	configAgent         *panconfig.Client
-	bucketMetadataCache *BucketMetadataCache
+	configAgent *panconfig.Client
 
 	defaultDirMode os.FileMode
 	defaultObjMode os.FileMode
@@ -231,7 +230,6 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 		defaultOwner:   defaultOwner,
 		defaultGroup:   defaultGroup,
 	}
-	fs.bucketMetadataCache = NewBucketMetadataCache()
 
 	// Once the filesystem has initialized hold the read lock for
 	// the life time of the server. This is done to ensure that under
@@ -490,7 +488,7 @@ func (fs *PANFSObjects) scanBucket(ctx context.Context, bucket string, cache dat
 func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string, failIfMissing bool) (BucketMetadata, error) {
 	var meta BucketMetadata
 	var err error
-	if meta, err = fs.bucketMetadataCache.Get(bucket); err == nil {
+	if meta, err = globalBucketMetadataCache.Get(bucket); err == nil {
 		return meta, err
 	}
 	if failIfMissing {
@@ -498,7 +496,7 @@ func (fs *PANFSObjects) loadBucketMetadata(ctx context.Context, bucket string, f
 	} else {
 		meta, err = loadBucketMetadata(ctx, fs, bucket)
 	}
-	fs.bucketMetadataCache.Set(bucket, meta)
+	globalBucketMetadataCache.Set(bucket, meta)
 
 	return meta, err
 }
@@ -600,7 +598,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	if err := meta.Save(ctx, fs); err != nil {
 		return toObjectErr(err, bucket)
 	}
-	fs.bucketMetadataCache.Set(bucket, meta)
+	globalBucketMetadataCache.Set(bucket, meta)
 
 	if fs.configAgent != nil {
 		if err := fs.configAgent.PutObject(pathJoin(panfsBucketListPrefix, bucket), nil); err != nil {
@@ -773,7 +771,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 
 	// Delete all bucket metadata.
 	deleteBucketMetadata(ctx, fs, bucket)
-	fs.bucketMetadataCache.Delete(bucket)
+	globalBucketMetadataCache.Delete(bucket)
 
 	if fs.configAgent != nil {
 		noLockID := ""
