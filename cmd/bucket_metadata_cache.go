@@ -12,6 +12,7 @@ type BucketMetadataCache struct {
 	metadata *map[string]BucketMetadata
 }
 
+// NewBucketMetadataCache returns a pointer to a newly created BucketMetadataCache object
 func NewBucketMetadataCache() *BucketMetadataCache {
 	return &BucketMetadataCache{
 		metadata: new(map[string]BucketMetadata),
@@ -35,12 +36,14 @@ func (cache *BucketMetadataCache) Get(bucket string) (BucketMetadata, error) {
 func (cache *BucketMetadataCache) Set(bucket string, metadata BucketMetadata) {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
+	(*cache.metadata)[bucket] = metadata
 }
 
 // Delete removes a given entry from the cache
 func (cache *BucketMetadataCache) Delete(bucket string) {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
+	delete(*cache.metadata, bucket)
 }
 
 // Drop removes all the entries from the cache
