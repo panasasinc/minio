@@ -589,7 +589,8 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		pathJoin(bucketMetaDir, tmpDir),
 		pathJoin(bucketMetaDir, mpartMetaPrefix))
 	for _, dir := range dirs {
-		if err := fsMkdir(ctx, dir); err != nil {
+		// If the directory for bucket has already exist then just skip err volume
+		if err := fsMkdir(ctx, dir); err != nil && !errors.Is(err, errVolumeExists) {
 			return toObjectErr(err)
 		}
 	}
@@ -1300,7 +1301,6 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 		return ObjectInfo{}, errInvalidArgument
 	}
 
-	tempDir := fs.getTempDir(bucketDir)
 	var wlk *lock.LockedFile
 	if bucket != minioMetaBucket {
 		objectMetaPath := fs.getObjectMetadataPath(bucketDir, object)
@@ -1341,6 +1341,12 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 			return ObjectInfo{}, retErr
 		}
 	} else {
+		var tempDir string
+		if bucket != minioMetaBucket {
+			tempDir = fs.getTempDir(bucketDir)
+		} else {
+			tempDir = pathJoin(bucketDir, tmpDir)
+		}
 		fsTmpObjPath := pathJoin(tempDir, tempObj)
 		bytesWritten, err := fsCreateFile(ctx, fsTmpObjPath, data, data.Size())
 
@@ -1894,6 +1900,7 @@ func (fs *PANFSObjects) isConfigAgentObject(bucket, object string) bool {
 	return true
 }
 
+// getTempDir returns path to the temporary directory using provided path to the bucket
 func (fs *PANFSObjects) getTempDir(bucketDir string) string {
 	return pathJoin(bucketDir, panfsS3TmpDir, fs.nodeDataSerial, strconv.FormatUint(atomic.AddUint64(&fs.currentTmpFolder, 1)%fs.tmpDirsCount, 10))
 }
