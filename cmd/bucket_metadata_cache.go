@@ -21,6 +21,9 @@ func NewBucketMetadataCache() *BucketMetadataCache {
 
 // Get fetches the given value from the cache
 func (cache *BucketMetadataCache) Get(bucket string) (BucketMetadata, error) {
+	if cache == nil {
+		return BucketMetadata{}, errCacheEntryNotFound
+	}
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 
@@ -34,6 +37,9 @@ func (cache *BucketMetadataCache) Get(bucket string) (BucketMetadata, error) {
 
 // Set sets the value for the given entry in the cache
 func (cache *BucketMetadataCache) Set(bucket string, metadata BucketMetadata) {
+	if cache == nil {
+		return
+	}
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 	(*cache.metadata)[bucket] = metadata
@@ -41,6 +47,9 @@ func (cache *BucketMetadataCache) Set(bucket string, metadata BucketMetadata) {
 
 // Delete removes a given entry from the cache
 func (cache *BucketMetadataCache) Delete(bucket string) {
+	if cache == nil {
+		return
+	}
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 	delete(*cache.metadata, bucket)
@@ -48,6 +57,9 @@ func (cache *BucketMetadataCache) Delete(bucket string) {
 
 // Drop removes all the entries from the cache
 func (cache *BucketMetadataCache) Drop() {
+	if cache == nil {
+		return
+	}
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 	cache.metadata = new(map[string]BucketMetadata)
