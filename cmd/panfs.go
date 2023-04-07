@@ -639,7 +639,13 @@ func (fs *PANFSObjects) SetBucketPolicy(ctx context.Context, bucket string, p *p
 	}
 	meta.PolicyConfigJSON = configData
 
-	return meta.Save(ctx, fs)
+	err = meta.Save(ctx, fs)
+	if err != nil {
+		return err
+	}
+
+	globalBucketMetadataCache.Set(bucket, meta)
+	return nil
 }
 
 // DeleteBucketPolicy - only needed for FS in NAS mode
@@ -649,7 +655,13 @@ func (fs *PANFSObjects) DeleteBucketPolicy(ctx context.Context, bucket string) e
 		return err
 	}
 	meta.PolicyConfigJSON = nil
-	return meta.Save(ctx, fs)
+	err = meta.Save(ctx, fs)
+	if err != nil {
+		return err
+	}
+
+	globalBucketMetadataCache.Set(bucket, meta)
+	return nil
 }
 
 // GetBucketInfo - fetch bucket metadata info.
