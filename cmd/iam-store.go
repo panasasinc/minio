@@ -1876,8 +1876,8 @@ func (store *IAMStoreSys) ListServiceAccounts(ctx context.Context, accessKey str
 }
 
 var (
-	regexUser  = regexp.MustCompile("^uid:([1-9][0-9]*)$")
-	regexGroup = regexp.MustCompile("^gid:([1-9][0-9]*)$")
+	RegexMappedSysUID = regexp.MustCompile("^uid:([1-9][0-9]*)$")
+	RegexMappedSysGID = regexp.MustCompile("^gid:([1-9][0-9]*)$")
 )
 
 // AddUser - adds/updates long term user account to storage.
@@ -1905,11 +1905,11 @@ func (store *IAMStoreSys) AddUser(ctx context.Context, accessKey string, ureq ma
 			return auth.AccountOff
 		}(),
 	})
-	if match := regexUser.FindStringSubmatch(ureq.MappedSysUser); len(match) == 2 {
-		u.MappedSysUser = match[1]
+	if match := RegexMappedSysUID.FindStringSubmatch(ureq.MappedSysUser); len(match) == 2 {
+		u.MappedSysUser = match[0]
 	}
-	if match := regexGroup.FindStringSubmatch(ureq.MappedSysGroup); len(match) == 2 {
-		u.MappedSysGroup = match[1]
+	if match := RegexMappedSysGID.FindStringSubmatch(ureq.MappedSysGroup); len(match) == 2 {
+		u.MappedSysGroup = match[0]
 	}
 
 	if err := store.saveUserIdentity(ctx, accessKey, regUser, u); err != nil {
