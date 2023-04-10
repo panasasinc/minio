@@ -1376,7 +1376,8 @@ func (fs *PANFSObjects) putObject(ctx context.Context, bucket string, object str
 
 		// Entire object was written to the temp location, now it's safe to rename it to the actual location.
 		fsNSObjPath = pathJoin(bucketDir, object)
-		if err = panfsPublishFile(fsTmpObjPath, fsNSObjPath, fs.defaultObjMode, fs.defaultDirMode, fs.defaultOwner, fs.defaultGroup); err != nil {
+		uid, gid := fs.getOwnerGroupIDs(ctx)
+		if err = panfsPublishFile(fsTmpObjPath, fsNSObjPath, fs.defaultObjMode, fs.defaultDirMode, uid, gid); err != nil {
 			logger.LogIf(ctx, err)
 			return ObjectInfo{}, toObjectErr(err, bucket, object)
 		}
@@ -1931,4 +1932,53 @@ func (fs *PANFSObjects) checkBucketPanFSPathNesting(ctx context.Context, path st
 		}
 	}
 	return nil
+}
+
+func (fs *PANFSObjects) getOwnerGroupIDs(ctx context.Context) (int, int) {
+	req := logger.GetReqInfo(ctx)
+	if req == nil || req.Cred.AccessKey == "" || req.Cred.AccessKey == globalActiveCred.AccessKey {
+		// Fallback to default IDs if we are not in HTTP request context or
+		// if request is run from MinIO root user
+		return fs.defaultOwner, fs.defaultGroup
+	}
+
+	var accessKey string
+	if req.Cred.IsTemp() || req.Cred.IsServiceAccount() {
+		accessKey = req.Cred.ParentUser
+	} else {
+		accessKey = req.Cred.AccessKey
+	}
+
+	user, exists := globalIAMSys.GetUser(ctx, accessKey)
+	if !exists {
+		logger.Error("Unable to resolve user info for access key = %s, parent user = %s",
+			req.Cred.AccessKey, req.Cred.ParentUser)
+		return fs.defaultOwner, fs.defaultGroup
+	}
+
+	var uid, gid int
+	if user.MappedSysUser == "" {
+		uid = fs.defaultOwner
+	} else {
+		match := RegexMappedSysUID.FindStringSubmatch(user.MappedSysUser)
+		if match == nil {
+			logger.Error("Unsupported owner ID format: %s", user.MappedSysUser)
+			uid = fs.defaultOwner
+		} else {
+			uid, _ = strconv.Atoi(match[1])
+		}
+	}
+	if user.MappedSysGroup == "" {
+		gid = fs.defaultGroup
+	} else {
+		match := RegexMappedSysGID.FindStringSubmatch(user.MappedSysGroup)
+		if match == nil {
+			logger.Error("Unsupported group ID format: %s", user.MappedSysGroup)
+			gid = fs.defaultGroup
+		} else {
+			gid, _ = strconv.Atoi(match[1])
+		}
+	}
+
+	return uid, gid
 }
