@@ -761,9 +761,8 @@ func (fs *PANFSObjects) ListBuckets(ctx context.Context, opts BucketOptions) ([]
 	return bucketInfos, nil
 }
 
-// DeleteBucket - delete a bucket and all the metadata associated
-// with the bucket including pending multipart, object metadata.
-// TODO: there is no need to delete user data when deleting bucket.
+// DeleteBucket - delete a bucket metadata, pending multipart and
+// temporary files. Delete operation does not touch object metadata
 func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts DeleteBucketOptions) error {
 	defer NSUpdated(bucket, slashSeparator)
 
@@ -776,25 +775,22 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 		return toObjectErr(err, bucket)
 	}
 
-	// only remove .s3 directory
-	deletePath := path.Join(bucketDir, bucket+"."+mustGetUUID())
-	if err = Rename(path.Join(bucketDir, panfsMetaDir), deletePath); err != nil {
-		return toObjectErr(err, bucket)
-	}
-
-	fsRemoveAll(ctx, deletePath)
-
 	// Delete all bucket metadata.
 	deleteBucketMetadata(ctx, fs, bucket)
 	globalBucketMetadataCache.Delete(bucket)
 
+	// only remove content of tmp and multipart directories
+	for _, dir := range []string{tmpDir, mpartMetaPrefix} {
+		deletePath := pathJoin(bucketDir, panfsMetaDir, "."+dir)
+		if err = PanRenameFile(pathJoin(bucketDir, panfsMetaDir, dir), deletePath); err != nil {
+			return toObjectErr(err, pathJoin(bucketDir, dir))
+		}
+		fsRemoveAll(ctx, deletePath) // TODO: delete in background?
+	}
 	if fs.configAgent != nil {
 		noLockID := ""
-		err = fs.configAgent.DeleteObject(
-			pathJoin(panfsBucketListPrefix, bucket),
-			noLockID,
-		)
-		if err != nil {
+		if err = fs.configAgent.DeleteObject(
+			pathJoin(panfsBucketListPrefix, bucket), noLockID); err != nil {
 			return toObjectErr(err, bucket)
 		}
 	}
