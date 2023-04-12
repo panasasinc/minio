@@ -781,16 +781,14 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 
 	// only remove content of tmp and multipart directories
 	for _, dir := range []string{tmpDir, mpartMetaPrefix} {
+		dirPath := pathJoin(bucketDir, panfsMetaDir, dir)
 		deletePath := pathJoin(bucketDir, panfsMetaDir, "."+dir)
-		logger.Info("Rename %s to %s", pathJoin(bucketDir, panfsMetaDir, dir), deletePath)
-		if err = PanRenameFile(pathJoin(bucketDir, panfsMetaDir, dir), deletePath); err != nil {
-			//if err = Rename(pathJoin(bucketDir, panfsMetaDir, dir), deletePath); err != nil {
-			logger.Info("Rename failed")
-			return toObjectErr(err, pathJoin(bucketDir, dir))
+		if err = Rename(dirPath, deletePath); err != nil {
+			// ignoring error - just continue deleting next folder
+			logger.Error("Cannot rename from %s to %s", dirPath, deletePath)
 		}
-		logger.Info("Remove %s", deletePath)
-		fsRemoveAll(ctx, deletePath) // TODO: delete in background?
-		logger.Info("Remove done!")
+		// delete data in background as tmp/multipart may contain a lot of data
+		go fsRemoveAll(context.Background(), deletePath)
 	}
 	if fs.configAgent != nil {
 		noLockID := ""
