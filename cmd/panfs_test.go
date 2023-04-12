@@ -206,32 +206,42 @@ func TestPANFSDeleteObject(t *testing.T) {
 func TestPANFSDeleteBucket(t *testing.T) {
 	// Prepare for testing
 	bucketName := getRandomBucketName()
+	objectName := getRandomObjectName()
+	objectContent := "qwerty1234"
 	obj, disk := initPanFSWithBucket(bucketName, t)
 	defer os.RemoveAll(disk)
 	fs := obj.(*PANFSObjects)
 
+	_, err := obj.PutObject(GlobalContext, bucketName, objectName, mustGetPutObjReader(t, bytes.NewReader([]byte(objectContent)), int64(len(objectContent)), "", ""), ObjectOptions{})
+	if err != nil {
+		t.Fatal("Unexpected error: ", err)
+	}
+
 	// Test with an invalid bucket name
-	if err := fs.DeleteBucket(GlobalContext, "fo", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
+	if err = fs.DeleteBucket(GlobalContext, "fo", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
 		t.Fatal("Unexpected error: ", err)
 	}
 
 	// Test with an not existing bucket
-	if err := fs.DeleteBucket(GlobalContext, "foobucket", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
+	if err = fs.DeleteBucket(GlobalContext, "foobucket", DeleteBucketOptions{}); !isSameType(err, BucketNotFound{}) {
 		t.Fatal("Unexpected error: ", err)
 	}
 	// Test with a valid case
-	if err := fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{}); err != nil {
+	if err = fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{}); err != nil {
 		t.Fatal("Unexpected error: ", err)
 	}
-	// Make sure that panfs bucket dir is not deleted
-	panfsBucketDir := pathJoin(disk, bucketName)
-	if _, err := fsStatDir(GlobalContext, panfsBucketDir); err != nil {
-		t.Fatal("Unexpected error: ", err)
+	// Make sure that the bucket dir, user data and its metadata are not deleted
+	for _, path := range []string{
+		pathJoin(disk, bucketName, panfsS3MetadataDir, objectName),
+		pathJoin(disk, bucketName, objectName),
+	} {
+		if _, err = fsStat(GlobalContext, path); err != nil {
+			t.Fatalf("Unexpected error (%s): %v", path, err)
+		}
 	}
 
 	// Delete bucket should get error disk not found.
-	os.RemoveAll(disk)
-	if err := fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{}); err != nil {
+	if err = fs.DeleteBucket(GlobalContext, bucketName, DeleteBucketOptions{}); err != nil {
 		if !isSameType(err, BucketNotFound{}) {
 			t.Fatal("Unexpected error: ", err)
 		}
