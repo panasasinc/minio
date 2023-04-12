@@ -1887,16 +1887,28 @@ func (store *IAMStoreSys) AddUser(ctx context.Context, accessKey string, ureq ma
 
 	cache.updatedAt = time.Now()
 
-	ui, ok := cache.iamUsersMap[accessKey]
+	oldUserInfo, isExisting := cache.iamUsersMap[accessKey]
 
 	// It is not possible to update an STS account.
-	if ok && ui.Credentials.IsTemp() {
+	if isExisting && oldUserInfo.Credentials.IsTemp() {
 		return updatedAt, errIAMActionNotAllowed
 	}
 
-	u := newUserIdentity(auth.Credentials{
+	var secretKey string
+	if isExisting && ureq.SecretKey == "" {
+		// If the request updates existing user and does not specify
+		// new secret key, we preserve existing secret key from IAM
+		// store.
+		secretKey = oldUserInfo.Credentials.SecretKey
+	} else if auth.IsSecretKeyValid(ureq.SecretKey) {
+		secretKey = ureq.SecretKey
+	} else {
+		return updatedAt, auth.ErrInvalidSecretKeyLength
+	}
+
+	newUserInfo := newUserIdentity(auth.Credentials{
 		AccessKey: accessKey,
-		SecretKey: ureq.SecretKey,
+		SecretKey: secretKey,
 		Status: func() string {
 			switch string(ureq.Status) {
 			case string(madmin.AccountEnabled), string(auth.AccountOn):
@@ -1905,20 +1917,75 @@ func (store *IAMStoreSys) AddUser(ctx context.Context, accessKey string, ureq ma
 			return auth.AccountOff
 		}(),
 	})
-	if match := RegexMappedSysUID.FindStringSubmatch(ureq.MappedSysUser); len(match) == 2 {
-		u.MappedSysUser = match[0]
-	}
-	if match := RegexMappedSysGID.FindStringSubmatch(ureq.MappedSysGroup); len(match) == 2 {
-		u.MappedSysGroup = match[0]
+
+	// Pananas-specific behavior:
+	//    "user add" command can work in two different modes: creation of new
+	//    user and modification of an existing user. There are rules for
+	//    interpreting arguments for system owner/group POSIX IDs for S3 user:
+	//      a) For new S3 user:
+	//         a.1) if system user/group is empty strings - optional argumet is not
+	//         provided to "mc admin user" command, leave system user/group unset in
+	//         IAM data store. In that case system-global default uid/gid will be
+	//         applied for the S3 user.
+	//         a.2) Explicit option for (a.1) is when system user/group is set to
+	//         "default" string, handle this case the same way as (a.1)
+	//         a.3) system user/group is set to "(uid|gid):[1-9][0-9]*" string,
+	//         accept this argument and store in IAM.
+	//         a.4) otherwise return error
+	//     b) For existing user:
+	//         b.1) if system user/group is empty string - optional argument is not
+	//         provided to "md admin user" command, so preserve existing values
+	//         for an existing user.
+	//         b.2) if system user/group is "default" string - user entry field
+	//         should be reset (set to empty string). In that case system-global
+	//         default uid/gid will be applied for this S3 user.
+	//         b.3) Equals to (a.3)
+	//         b.4) Equals to (b.4)
+	if ureq.MappedSysUser == "default" {
+		// (a.2)/(b.2) leave newUserInfo.MappedSysUser unset if ureq.MappedSysUser is "default"
+		newUserInfo.MappedSysUser = ""
+	} else if ureq.MappedSysUser == "" {
+		if isExisting {
+			// (b.1) preserve existing vaue
+			newUserInfo.MappedSysUser = oldUserInfo.MappedSysUser
+		} else {
+			// (a.1) leave newUserInfo.MappedSysUser unset for new user
+			newUserInfo.MappedSysUser = ""
+		}
+	} else if match := RegexMappedSysUID.FindStringSubmatch(ureq.MappedSysUser); len(match) == 2 {
+		// (a.3) / (b.3) apply provided UID to IAM store
+		newUserInfo.MappedSysUser = match[0]
+	} else {
+		// (a.4) / (b.4) unsupported format for system user field
+		return updatedAt, errInvalidArgument
 	}
 
-	if err := store.saveUserIdentity(ctx, accessKey, regUser, u); err != nil {
+	if ureq.MappedSysGroup == "default" {
+		// (a.2)/(b.2) leave newUserInfo.MappedSysGroup unset if ureq.MappedSysGroup is "default"
+		newUserInfo.MappedSysGroup = ""
+	} else if ureq.MappedSysGroup == "" {
+		if isExisting {
+			// (b.1) preserve existing vaue
+			newUserInfo.MappedSysGroup = oldUserInfo.MappedSysGroup
+		} else {
+			// (a.1) leave newUserInfo.MappedSysGroup unset for new user
+			newUserInfo.MappedSysGroup = ""
+		}
+	} else if match := RegexMappedSysGID.FindStringSubmatch(ureq.MappedSysGroup); len(match) == 2 {
+		// (a.3) / (b.3) apply provided GID to IAM store
+		newUserInfo.MappedSysGroup = match[0]
+	} else {
+		// (a.4) / (b.4) unsupported format for system group field
+		return updatedAt, errInvalidArgument
+	}
+
+	if err := store.saveUserIdentity(ctx, accessKey, regUser, newUserInfo); err != nil {
 		return updatedAt, err
 	}
 
-	cache.iamUsersMap[accessKey] = u
+	cache.iamUsersMap[accessKey] = newUserInfo
 
-	return u.UpdatedAt, nil
+	return newUserInfo.UpdatedAt, nil
 }
 
 // UpdateUserSecretKey - sets user secret key to storage.

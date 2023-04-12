@@ -1126,10 +1126,6 @@ func (sys *IAMSys) CreateUser(ctx context.Context, accessKey string, ureq madmin
 		return updatedAt, auth.ErrInvalidAccessKeyLength
 	}
 
-	if !auth.IsSecretKeyValid(ureq.SecretKey) {
-		return updatedAt, auth.ErrInvalidSecretKeyLength
-	}
-
 	updatedAt, err = sys.store.AddUser(ctx, accessKey, ureq)
 	if err != nil {
 		return updatedAt, err
