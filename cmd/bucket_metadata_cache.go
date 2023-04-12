@@ -8,7 +8,7 @@ import (
 var errCacheEntryNotFound = errors.New("Entry not found in cache")
 
 type BucketMetadataCache struct {
-	lock     sync.Mutex
+	mutex    sync.RWMutex
 	metadata map[string]BucketMetadata
 }
 
@@ -19,13 +19,33 @@ func NewBucketMetadataCache() *BucketMetadataCache {
 	}
 }
 
+// rlock locks cache for reading
+func (cache *BucketMetadataCache) rlock() {
+	cache.mutex.RLock()
+}
+
+// runlock unlocks cache locked for reading
+func (cache *BucketMetadataCache) runlock() {
+	cache.mutex.RUnlock()
+}
+
+// lock locks cache for writing
+func (cache *BucketMetadataCache) lock() {
+	cache.mutex.Lock()
+}
+
+// unlock unlocks cache locked for writing
+func (cache *BucketMetadataCache) unlock() {
+	cache.mutex.Unlock()
+}
+
 // Get fetches the given value from the cache
 func (cache *BucketMetadataCache) Get(bucket string) (BucketMetadata, error) {
 	if cache == nil {
 		return BucketMetadata{}, errCacheEntryNotFound
 	}
-	cache.lock.Lock()
-	defer cache.lock.Unlock()
+	cache.rlock()
+	defer cache.runlock()
 
 	meta, ok := cache.metadata[bucket]
 	if ok {
@@ -40,8 +60,8 @@ func (cache *BucketMetadataCache) Set(bucket string, metadata BucketMetadata) {
 	if cache == nil {
 		return
 	}
-	cache.lock.Lock()
-	defer cache.lock.Unlock()
+	cache.lock()
+	defer cache.unlock()
 	cache.metadata[bucket] = metadata
 }
 
@@ -50,8 +70,8 @@ func (cache *BucketMetadataCache) Delete(bucket string) {
 	if cache == nil {
 		return
 	}
-	cache.lock.Lock()
-	defer cache.lock.Unlock()
+	cache.lock()
+	defer cache.unlock()
 	delete(cache.metadata, bucket)
 }
 
@@ -60,7 +80,7 @@ func (cache *BucketMetadataCache) Drop() {
 	if cache == nil {
 		return
 	}
-	cache.lock.Lock()
-	defer cache.lock.Unlock()
+	cache.lock()
+	defer cache.unlock()
 	cache.metadata = make(map[string]BucketMetadata)
 }
