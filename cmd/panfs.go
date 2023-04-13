@@ -36,7 +36,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
@@ -161,12 +160,8 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 		return nil, config.ErrUnableToWriteInBackend(err).Hint(hint)
 	}
 
-	// Assign a new UUID for FS minio mode. Each server instance
-	// gets its own UUID for temporary file transaction.
-	nodeDataSerial := env.Get(config.EnvPanUUID, mustGetUUID())
-	if _, err := uuid.Parse(nodeDataSerial); err != nil {
-		return nil, fmt.Errorf("can't parse uuid provided via env variable \"%s\". Value:\"%s\" Error: %w", config.EnvPanUUID, nodeDataSerial, err)
-	}
+	// initialize nodeDataSerial from environment variable or generate random UUID
+	nodeDataSerial := env.Get(config.EnvPanDataserial, mustGetUUID())
 
 	// Initialize meta volume, if volume already exists ignores it.
 	if err = initMetaVolumePANFS(fsPath, nodeDataSerial); err != nil {
