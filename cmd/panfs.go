@@ -770,8 +770,19 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 		return toObjectErr(err, bucket)
 	}
 
-	// Delete all bucket metadata.
-	deleteBucketMetadata(ctx, fs, bucket)
+	if fs.configAgent != nil {
+		noLockID := ""
+		if err = fs.configAgent.DeleteObject(
+			pathJoin(panfsBucketListPrefix, bucket), noLockID); err != nil {
+			return toObjectErr(err, bucket)
+		}
+	} else {
+		if err = fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket)); err != nil {
+			return toObjectErr(err, bucket)
+		}
+		// Delete all bucket metadata.
+		deleteBucketMetadata(ctx, fs, bucket)
+	}
 	globalBucketMetadataCache.Delete(bucket)
 
 	// only remove content of tmp and multipart directories
@@ -780,19 +791,11 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 		deletePath := pathJoin(bucketDir, panfsMetaDir, "."+dir)
 		if err = Rename(dirPath, deletePath); err != nil {
 			// ignoring error - just continue deleting next folder
-			logger.Error("Cannot rename from %s to %s", dirPath, deletePath)
+			continue
 		}
 		// delete data in background as tmp/multipart may contain a lot of data
 		go fsRemoveAll(context.Background(), deletePath)
 	}
-	if fs.configAgent != nil {
-		noLockID := ""
-		if err = fs.configAgent.DeleteObject(
-			pathJoin(panfsBucketListPrefix, bucket), noLockID); err != nil {
-			return toObjectErr(err, bucket)
-		}
-	}
-
 	return nil
 }
 
