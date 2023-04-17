@@ -1507,7 +1507,7 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 
 	if bucket != minioMetaBucket {
 		// Delete the metadata object.
-		err = fsRemoveFile(ctx, fsMetaPath)
+		err = deleteFile(pathJoin(bucketDir, panfsS3MetadataDir), fsMetaPath, false)
 		if err != nil && err != errFileNotFound {
 			return objInfo, toObjectErr(err, bucket, object)
 		}
