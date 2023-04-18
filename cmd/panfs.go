@@ -590,8 +590,8 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	}
 
 	meta := newBucketMetadata(bucket)
-	// Save panfs path without trailing slash
-	meta.PanFSPath = strings.TrimSuffix(bucketPanFSPath, "/")
+	// Save panfs path with trailing slash
+	meta.PanFSPath = retainSlash(bucketPanFSPath)
 
 	if err := meta.Save(ctx, fs); err != nil {
 		return toObjectErr(err, bucket)
@@ -728,7 +728,7 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		}
 
 		bucketInfos = append(bucketInfos, BucketInfo{
-			Name:      meta.Name,
+			Name:      fi.Name(),
 			Created:   fi.ModTime(),
 			PanFSPath: meta.PanFSPath,
 		})
