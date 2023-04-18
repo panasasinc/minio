@@ -770,6 +770,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 		return toObjectErr(err, bucket)
 	}
 
+	globalBucketMetadataCache.Delete(bucket)
 	if fs.configAgent != nil {
 		noLockID := ""
 		if err = fs.configAgent.DeleteObject(
@@ -780,10 +781,10 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 		if err = fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket)); err != nil {
 			return toObjectErr(err, bucket)
 		}
-		// Delete all bucket metadata.
-		deleteBucketMetadata(ctx, fs, bucket)
 	}
-	globalBucketMetadataCache.Delete(bucket)
+
+	// Delete all bucket metadata.
+	deleteBucketMetadata(ctx, fs, bucket)
 
 	// only remove content of tmp and multipart directories
 	for _, dir := range []string{tmpDir, mpartMetaPrefix} {
