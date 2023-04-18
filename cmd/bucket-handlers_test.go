@@ -244,7 +244,7 @@ func testGetBucketPanFSPathHandler(obj ObjectLayer, instanceType, bucketName str
 			secretKey:          credentials.SecretKey,
 			expectedRespStatus: http.StatusOK,
 			panFSResponse: []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<PanFSPath>` + pathJoin(globalPanFSDefaultBucketPath, bucketName) + `</PanFSPath>`),
+<PanFSPath>` + pathJoin(globalPanFSDefaultBucketPath, bucketName+"/") + `</PanFSPath>`),
 			errorResponse: APIErrorResponse{},
 			shouldPass:    true,
 		},

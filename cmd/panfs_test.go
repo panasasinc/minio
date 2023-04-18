@@ -104,7 +104,7 @@ func TestPANFSGetBucketInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedPanFSBucketPath := pathJoin(disk, bucketName)
+	expectedPanFSBucketPath := pathJoin(disk, bucketName+"/")
 	if info.PanFSPath != expectedPanFSBucketPath {
 		t.Fatalf("wrong bucket panfs path, expected: %s, found: %s", expectedPanFSBucketPath, info.PanFSPath)
 	}
