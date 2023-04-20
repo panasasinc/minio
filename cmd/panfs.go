@@ -728,7 +728,7 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		}
 
 		bucketInfos = append(bucketInfos, BucketInfo{
-			Name:      fi.Name(),
+			Name:      strings.TrimSuffix(meta.Name, "/"),
 			Created:   fi.ModTime(),
 			PanFSPath: meta.PanFSPath,
 		})
