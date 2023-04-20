@@ -109,7 +109,7 @@ var userMetadataKeyPrefixes = []string{
 }
 
 // extractMetadata extracts metadata from HTTP header and HTTP queryString.
-func extractMetadata(ctx context.Context, r *http.Request) (metadata map[string]string, err error) {
+func extractMetadata(ctx context.Context, r *http.Request, defaultContentType string) (metadata map[string]string, err error) {
 	query := r.Form
 	header := r.Header
 	metadata = make(map[string]string)
@@ -125,9 +125,11 @@ func extractMetadata(ctx context.Context, r *http.Request) (metadata map[string]
 		return nil, err
 	}
 
-	// Set content-type to default value if it is not set.
-	if _, ok := metadata[strings.ToLower(xhttp.ContentType)]; !ok {
-		metadata[strings.ToLower(xhttp.ContentType)] = "binary/octet-stream"
+	// Set content-type to the default value if it is not set.
+	if defaultContentType != "" {
+		if _, ok := metadata[strings.ToLower(xhttp.ContentType)]; !ok {
+			metadata[strings.ToLower(xhttp.ContentType)] = defaultContentType
+		}
 	}
 
 	// https://github.com/google/security-research/security/advisories/GHSA-76wf-9vgp-pj7w
