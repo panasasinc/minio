@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	pathutil "path"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,6 +46,7 @@ import (
 	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/bucket/policy"
 	iampolicy "github.com/minio/pkg/iam/policy"
+	"github.com/minio/pkg/mimedb"
 	"github.com/minio/sio"
 )
 
@@ -124,7 +126,8 @@ func (api objectAPIHandlers) NewMultipartUploadHandler(w http.ResponseWriter, r 
 	}
 
 	// Extract metadata that needs to be saved.
-	metadata, err := extractMetadata(ctx, r)
+	suspectedContentType := mimedb.TypeByExtension(pathutil.Ext(object))
+	metadata, err := extractMetadata(ctx, r, suspectedContentType)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
 		return

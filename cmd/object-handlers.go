@@ -28,6 +28,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	pathutil "path"
 	"strconv"
 	"strings"
 	"sync"
@@ -59,6 +60,7 @@ import (
 	"github.com/minio/minio/internal/s3select"
 	"github.com/minio/pkg/bucket/policy"
 	iampolicy "github.com/minio/pkg/iam/policy"
+	"github.com/minio/pkg/mimedb"
 	xnet "github.com/minio/pkg/net"
 	"github.com/minio/sio"
 )
@@ -925,7 +927,7 @@ func getCpObjMetadataFromHeader(ctx context.Context, r *http.Request, userMeta m
 	// if x-amz-metadata-directive says REPLACE then
 	// we extract metadata from the input headers.
 	if isDirectiveReplace(r.Header.Get(xhttp.AmzMetadataDirective)) {
-		emetadata, err := extractMetadata(ctx, r)
+		emetadata, err := extractMetadata(ctx, r, "binary/octet-stream")
 		if err != nil {
 			return nil, err
 		}
@@ -1705,7 +1707,8 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	metadata, err := extractMetadata(ctx, r)
+	suspectedContentType := mimedb.TypeByExtension(pathutil.Ext(object))
+	metadata, err := extractMetadata(ctx, r, suspectedContentType)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
 		return
