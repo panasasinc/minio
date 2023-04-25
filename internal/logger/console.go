@@ -40,9 +40,14 @@ type Logger interface {
 	json(msg string, args ...interface{})
 	quiet(msg string, args ...interface{})
 	pretty(msg string, args ...interface{})
+	severity() LogLevel
 }
 
 func consoleLog(console Logger, msg string, args ...interface{}) {
+	sendMessageToSyslog(
+		console.severity(),
+		ansiRE.ReplaceAllLiteralString(msg, ""),
+		args...)
 	switch {
 	case jsonFlag:
 		// Strip escape control characters from json message
@@ -149,6 +154,10 @@ func (f fatalMsg) pretty(msg string, args ...interface{}) {
 	ExitFunc(1)
 }
 
+func (f fatalMsg) severity() LogLevel {
+	return FatalLvl
+}
+
 type infoMsg struct{}
 
 var info infoMsg
@@ -179,6 +188,10 @@ func (i infoMsg) pretty(msg string, args ...interface{}) {
 		c.Println(args...)
 	}
 	c.Printf(msg, args...)
+}
+
+func (i infoMsg) severity() LogLevel {
+	return InfoLvl
 }
 
 type errorMsg struct{}
@@ -213,6 +226,10 @@ func (i errorMsg) pretty(msg string, args ...interface{}) {
 		c.Println(args...)
 	}
 	c.Printf(msg, args...)
+}
+
+func (i errorMsg) severity() LogLevel {
+	return ErrorLvl
 }
 
 // Error :

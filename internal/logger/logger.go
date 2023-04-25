@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"go/build"
+	"log/syslog"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -67,6 +68,8 @@ var matchingFuncNames = [...]string{
 	// add more here ..
 }
 
+var syslogWriter *syslog.Writer
+
 func (level LogLevel) String() string {
 	switch level {
 	case InfoLvl:
@@ -107,6 +110,10 @@ func EnableAnonymous() {
 // IsJSON - returns true if jsonFlag is true
 func IsJSON() bool {
 	return jsonFlag
+}
+
+func IsSyslog() bool {
+	return syslogWriter != nil
 }
 
 // IsQuiet - returns true if quietFlag is true
@@ -180,6 +187,11 @@ func Init(goPath string, goRoot string) {
 	// paths like "{GOROOT}/src/github.com/minio/minio"
 	// and "{GOPATH}/src/github.com/minio/minio"
 	trimStrings = append(trimStrings, filepath.Join("github.com", "minio", "minio")+string(filepath.Separator))
+
+	writer, err := syslog.New(syslog.LOG_INFO, "minio")
+	if err == nil {
+		syslogWriter = writer
+	}
 }
 
 func trimTrace(f string) string {
@@ -341,12 +353,21 @@ func errToEntry(ctx context.Context, err error, errKind ...interface{}) log.Entr
 // consoleLogIf prints a detailed error message during
 // the execution of the server.
 func consoleLogIf(ctx context.Context, err error, errKind ...interface{}) {
-	if MinimumLogLevel > ErrorLvl {
+	doSyslog := IsSyslog()
+	doConsole := true
+	if MinimumLogLevel > ErrorLvl || consoleTgt == nil {
+		doConsole = false
+	}
+
+	if !(doSyslog || doConsole) {
 		return
 	}
 
-	if consoleTgt != nil {
-		entry := errToEntry(ctx, err, errKind...)
+	entry := errToEntry(ctx, err, errKind...)
+	if doSyslog {
+		sendErrorToSyslog(entry)
+	}
+	if doConsole {
 		consoleTgt.Send(entry)
 	}
 }
@@ -354,16 +375,21 @@ func consoleLogIf(ctx context.Context, err error, errKind ...interface{}) {
 // logIf prints a detailed error message during
 // the execution of the server.
 func logIf(ctx context.Context, err error, errKind ...interface{}) {
-	if MinimumLogLevel > ErrorLvl {
-		return
+	doSyslog := IsSyslog()
+	systemTgts := []Target{}
+	if MinimumLogLevel <= ErrorLvl {
+		systemTgts = SystemTargets()
 	}
 
-	systemTgts := SystemTargets()
-	if len(systemTgts) == 0 {
+	if !(doSyslog || len(systemTgts) > 0) {
 		return
 	}
 
 	entry := errToEntry(ctx, err, errKind...)
+	if doSyslog {
+		sendErrorToSyslog(entry)
+	}
+
 	// Iterate over all logger targets to send the log entry
 	for _, t := range systemTgts {
 		if err := t.Send(entry); err != nil {
