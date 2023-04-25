@@ -7,11 +7,16 @@ This document explains how to configure MinIO server to log to different logging
 MinIO supports currently two target types
 
 - console
+- syslog
 - http
 
 ### Logging Console Target
 
 Console target is on always and cannot be disabled.
+
+### Logging Syslog Target
+
+Syslog target is on always and cannot be disabled.
 
 ### Logging HTTP Target
 
