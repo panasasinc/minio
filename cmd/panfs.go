@@ -716,7 +716,11 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		if isReservedOrInvalidBucket(entry, false) {
 			continue
 		}
-		meta, err := fs.loadBucketMetadata(ctx, entry, true)
+
+		// We should load bucket metadata by its name (without trailing slash). Trailing slash in same cases
+		// breaks validation of assigned policy to the bucket and breaks bucket listing as well (policy validates
+		// that bucket name matches to the resource defined in policy
+		meta, err := fs.loadBucketMetadata(ctx, strings.TrimSuffix(entry, "/"), true)
 		if err != nil {
 			continue
 		}
