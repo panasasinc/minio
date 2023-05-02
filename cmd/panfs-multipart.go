@@ -264,6 +264,7 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 	// Initialize panfs.json values.
 	fsMeta := newPANFSMeta()
 	fsMeta.Meta = opts.UserDefined
+	fsMeta.Meta[ReservedMetadataPrefix+"multipart-original-node-dataserial"] = fs.nodeDataSerial
 
 	fsMetaBytes, err := json.Marshal(fsMeta)
 	if err != nil {
@@ -284,6 +285,16 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 func (fs *PANFSObjects) CopyObjectPart(ctx context.Context, srcBucket, srcObject, dstBucket, dstObject, uploadID string, partID int,
 	startOffset int64, length int64, srcInfo ObjectInfo, srcOpts, dstOpts ObjectOptions) (pi PartInfo, err error,
 ) {
+	originalNodeDataSerial, ok := dstOpts.UserDefined[ReservedMetadataPrefix+"multipart-original-node-dataserial"]
+	if !ok || originalNodeDataSerial != fs.nodeDataSerial {
+		// The multipart upload has not been initialized on this node.
+		return pi, InvalidUploadID{
+			Bucket:   dstBucket,
+			Object:   dstObject,
+			UploadID: uploadID,
+		}
+	}
+
 	if srcOpts.VersionID != "" && srcOpts.VersionID != nullVersionID {
 		return pi, VersionNotFound{
 			Bucket:    srcBucket,
@@ -313,6 +324,16 @@ func (fs *PANFSObjects) CopyObjectPart(ctx context.Context, srcBucket, srcObject
 // written to '<bucketPath>/.s3/tmp' location and safely renamed to
 // '<bucketPath>/.s3/multipart' for reach parts.
 func (fs *PANFSObjects) PutObjectPart(ctx context.Context, bucket, object, uploadID string, partID int, r *PutObjReader, opts ObjectOptions) (pi PartInfo, e error) {
+	originalNodeDataSerial, ok := opts.UserDefined[ReservedMetadataPrefix+"multipart-original-node-dataserial"]
+	if !ok || originalNodeDataSerial != fs.nodeDataSerial {
+		// The multipart upload has not been initialized on this node.
+		return pi, InvalidUploadID{
+			Bucket:   bucket,
+			Object:   object,
+			UploadID: uploadID,
+		}
+	}
+
 	if opts.VersionID != "" && opts.VersionID != nullVersionID {
 		return pi, VersionNotFound{
 			Bucket:    bucket,
@@ -414,35 +435,10 @@ func (fs *PANFSObjects) GetMultipartInfo(ctx context.Context, bucket, object, up
 		return minfo, toObjectErr(err)
 	}
 
-	bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
+	fsMeta, err := fs.readMultipartUploadMeta(ctx, bucket, object, uploadID)
 	if err != nil {
 		logger.LogIf(ctx, err, logger.Application)
-		return minfo, toObjectErr(err)
-	}
-
-	// Check if bucket exists
-	if _, err := fsStatVolume(ctx, bucketPath); err != nil {
-		return minfo, toObjectErr(err, bucket)
-	}
-
-	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
-	if _, err := fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile)); err != nil {
-		if err == errFileNotFound || err == errFileAccessDenied {
-			return minfo, InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
-		}
-		return minfo, toObjectErr(err, bucket, object)
-	}
-
-	fsMetaBytes, err := xioutil.ReadFile(pathJoin(uploadIDDir, fs.metaJSONFile))
-	if err != nil {
-		logger.LogIf(ctx, err)
-		return minfo, toObjectErr(err, bucket, object)
-	}
-
-	var fsMeta fsMetaV1
-	json := jsoniter.ConfigCompatibleWithStandardLibrary
-	if err = json.Unmarshal(fsMetaBytes, &fsMeta); err != nil {
-		return minfo, toObjectErr(err, bucket, object)
+		return minfo, err
 	}
 
 	minfo.UserDefined = fsMeta.Meta
@@ -560,23 +556,8 @@ func (fs *PANFSObjects) ListObjectParts(ctx context.Context, bucket, object, upl
 		}
 	}
 
-	rc, _, err := fsOpenFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile), 0)
+	fsMeta, err := fs.readMultipartUploadMeta(ctx, bucket, object, uploadID)
 	if err != nil {
-		if err == errFileNotFound || err == errFileAccessDenied {
-			return result, InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
-		}
-		return result, toObjectErr(err, bucket, object)
-	}
-	defer rc.Close()
-
-	fsMetaBytes, err := ioutil.ReadAll(rc)
-	if err != nil {
-		return result, toObjectErr(err, bucket, object)
-	}
-
-	var fsMeta fsMetaV1
-	json := jsoniter.ConfigCompatibleWithStandardLibrary
-	if err = json.Unmarshal(fsMetaBytes, &fsMeta); err != nil {
 		return result, err
 	}
 
@@ -595,6 +576,19 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 
 	if err := checkCompleteMultipartArgs(ctx, bucket, object, fs); err != nil {
 		return oi, toObjectErr(err)
+	}
+	fsMeta, err := fs.readMultipartUploadMeta(ctx, bucket, object, uploadID)
+	if err != nil {
+		return oi, err
+	}
+
+	originalNodeDataSerial, ok := fsMeta.Meta[ReservedMetadataPrefix+"multipart-original-node-dataserial"]
+	if !ok || originalNodeDataSerial != fs.nodeDataSerial {
+		return oi, InvalidUploadID{
+			Bucket:   bucket,
+			Object:   object,
+			UploadID: uploadID,
+		}
 	}
 
 	bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
@@ -622,8 +616,6 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	for i := range parts {
 		parts[i].ETag = canonicalizeETag(parts[i].ETag)
 	}
-
-	fsMeta := panfsMeta{}
 
 	// Allocate parts similar to incoming slice.
 	fsMeta.Parts = make([]ObjectPartInfo, len(parts))
@@ -791,13 +783,6 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		}
 	}()
 
-	// Read saved fs metadata for ongoing multipart.
-	fsMetaBuf, err := xioutil.ReadFile(pathJoin(uploadIDDir, fs.metaJSONFile))
-	if err != nil {
-		logger.LogIf(ctx, err)
-		return oi, toObjectErr(err, bucket, object)
-	}
-	err = json.Unmarshal(fsMetaBuf, &fsMeta)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return oi, toObjectErr(err, bucket, object)
@@ -860,6 +845,20 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object, uploadID string, opts ObjectOptions) error {
 	if err := checkAbortMultipartArgs(ctx, bucket, object, fs); err != nil {
 		return err
+	}
+
+	fsMeta, err := fs.readMultipartUploadMeta(ctx, bucket, object, uploadID)
+	if err != nil {
+		return err
+	}
+
+	originalNodeDataSerial, ok := fsMeta.Meta[ReservedMetadataPrefix+"multipart-original-node-dataserial"]
+	if !ok || originalNodeDataSerial != fs.nodeDataSerial {
+		return InvalidUploadID{
+			Bucket:   bucket,
+			Object:   object,
+			UploadID: uploadID,
+		}
 	}
 
 	bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
@@ -999,4 +998,35 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 			expiryUploadsTimer.Reset(globalAPIConfig.getStaleUploadsCleanupInterval())
 		}
 	}
+}
+
+func (fs *PANFSObjects) readMultipartUploadMeta(ctx context.Context, bucket, object, uploadID string) (fsMetaV1, error) {
+	bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
+	if err != nil {
+		logger.LogIf(ctx, err, logger.Application)
+		return fsMetaV1{}, toObjectErr(err)
+	}
+
+	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
+	rc, _, err := fsOpenFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile), 0)
+	if err != nil {
+		if err == errFileNotFound || err == errFileAccessDenied {
+			return fsMetaV1{}, InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
+		}
+		return fsMetaV1{}, toObjectErr(err, bucket, object)
+	}
+	defer rc.Close()
+
+	fsMetaBytes, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return fsMetaV1{}, toObjectErr(err, bucket, object)
+	}
+
+	var fsMeta fsMetaV1
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
+	if err = json.Unmarshal(fsMetaBytes, &fsMeta); err != nil {
+		return fsMetaV1{}, err
+	}
+
+	return fsMeta, nil
 }
