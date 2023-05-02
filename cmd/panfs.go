@@ -160,8 +160,10 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 		return nil, config.ErrUnableToWriteInBackend(err).Hint(hint)
 	}
 
-	// initialize nodeDataSerial from environment variable or generate random UUID
-	nodeDataSerial := env.Get(config.EnvPanDataserial, mustGetUUID())
+	nodeDataSerial := env.Get(config.EnvPanDataserial, "")
+	if nodeDataSerial == "" {
+		return nil, config.ErrMissingEnvPanDataserial(err)
+	}
 
 	// Initialize meta volume, if volume already exists ignores it.
 	if err = initMetaVolumePANFS(fsPath, nodeDataSerial); err != nil {

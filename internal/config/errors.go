@@ -157,6 +157,12 @@ var (
 		`Default PanFS bucket path is expected to be specified via environment variable MINIO_PANFS_BUCKET_PATH`,
 	)
 
+	ErrMissingEnvPanDataserial = newErrFn(
+		`Missing Panasas dataserial environment variable, "`+EnvPanDataserial+`"`,
+		`Environment variable "`+EnvPanDataserial+`" is missing`,
+		`Panasas dataserial must be provided through "`+EnvPanDataserial+`" environment variable.`,
+	)
+
 	ErrMissingEnvCredentialRootUser = newErrFn(
 		"Missing credential environment variable, \""+EnvRootUser+"\"",
 		"Environment variable \""+EnvRootUser+"\" is missing",
