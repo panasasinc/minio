@@ -1136,11 +1136,6 @@ func (fs *PANFSObjects) getObjectInfo(ctx context.Context, bucket, object string
 	// Read `fs.json` to perhaps contend with
 	// parallel Put() operations.
 
-	// If the target object is an object directory - returns errFileNotFound
-	if fs.isObjectDir(bucketDir, object) {
-		return oi, errFileNotFound
-	}
-
 	rlk, err := fs.rwPool.Open(fsMetaPath)
 	if err == nil {
 		// Read from fs metadata only if it exists.
@@ -1149,6 +1144,14 @@ func (fs *PANFSObjects) getObjectInfo(ctx context.Context, bucket, object string
 		if rerr != nil {
 			// For any error to read fsMeta, set default ETag and proceed.
 			fsMeta = fs.defaultFsJSON(object)
+		}
+	}
+
+	// If the target object is an object directory - returns errFileNotFound. Only perform
+	// stat call when errIsNotRegular found.
+	if err == errIsNotRegular {
+		if _, ferr := fsStatDir(ctx, fsMetaPath); ferr == nil {
+			return oi, errFileNotFound
 		}
 	}
 
