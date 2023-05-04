@@ -1147,12 +1147,10 @@ func (fs *PANFSObjects) getObjectInfo(ctx context.Context, bucket, object string
 		}
 	}
 
-	// If the target object is an object directory - returns errFileNotFound. Only perform
-	// stat call when errIsNotRegular found.
-	if err == errIsNotRegular {
-		if _, ferr := fsStatDir(ctx, fsMetaPath); ferr == nil {
-			return oi, errFileNotFound
-		}
+	// If the target object is an object directory - returns errFileNotFound. We need to check
+	// EINVAL error for PANFS backend.
+	if isSysErrInvalidArg(err) || err == errIsNotRegular {
+		return oi, errFileNotFound
 	}
 
 	// Return a default etag and content-type based on the object's extension.
