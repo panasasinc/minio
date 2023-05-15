@@ -742,7 +742,8 @@ func (s *TestSuiteIAM) TestGroupAddRemove(c *check) {
 	if err != nil {
 		c.Fatalf("group list err: %v", err)
 	}
-	if !set.CreateStringSet(groups...).Contains(group) {
+	_, ok := groups[group]
+	if !ok {
 		c.Fatalf("created group not present!")
 	}
 	groupInfo, err := s.adm.GetGroupDescription(ctx, group)
@@ -822,7 +823,8 @@ func (s *TestSuiteIAM) TestGroupAddRemove(c *check) {
 	if err != nil {
 		c.Fatalf("group list err: %v", err)
 	}
-	if set.CreateStringSet(groups...).Contains(group) {
+	_, ok = groups[group]
+	if ok {
 		c.Fatalf("created group still present!")
 	}
 	groupInfo, err = s.adm.GetGroupDescription(ctx, group)

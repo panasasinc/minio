@@ -229,7 +229,7 @@ require (
 
 replace github.com/minio/pkg => github.com/panasasinc/minio-pkg v1.5.5-0.20230331124037-2837fe391278
 
-replace github.com/minio/madmin-go => github.com/panasasinc/madmin-go v0.0.0-20230331061341-8fdaf3295741
+replace github.com/minio/madmin-go => github.com/panasasinc/madmin-go v1.6.7-0.20230524085333-532553a0f7e2
 
 replace github.com/minio/mc v0.0.0-20221007160339-ec8687d57e36 => github.com/panasasinc/minio-mc v0.0.0-20230331094413-3947d76f8f35
 

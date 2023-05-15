@@ -840,8 +840,8 @@ github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=
 github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6HuIJcUGPhkA7kY=
 github.com/opentracing/opentracing-go v1.2.0/go.mod h1:GxEUsuufX4nBwe+T+Wl9TAgYrxe9dPLANfrWvHYVTgc=
-github.com/panasasinc/madmin-go v0.0.0-20230331061341-8fdaf3295741 h1:pg5zCBu0vhE80JNDuJ2Nzy8zPJEhCMCOlEhN1f+n3q8=
-github.com/panasasinc/madmin-go v0.0.0-20230331061341-8fdaf3295741/go.mod h1:ATvkBOLiP3av4D++2v1UEHC/QzsGtgXD5kYvvRYzdKs=
+github.com/panasasinc/madmin-go v1.6.7-0.20230524085333-532553a0f7e2 h1:mnuvPqRwcL6jtvTY3zwBo0Y5X774OWxbn7pAvWjcCaY=
+github.com/panasasinc/madmin-go v1.6.7-0.20230524085333-532553a0f7e2/go.mod h1:ATvkBOLiP3av4D++2v1UEHC/QzsGtgXD5kYvvRYzdKs=
 github.com/panasasinc/minio-go/v7 v7.0.0-20221206164009-5985ee51debf h1:H1tBUSBWU7Q4O4dpbJAaPKKu2lmpLEsFerl4XJ4xut0=
 github.com/panasasinc/minio-go/v7 v7.0.0-20221206164009-5985ee51debf/go.mod h1:nCrRzjoSUQh8hgKKtu3Y708OLvRLtuASMg2/nvmbarw=
 github.com/panasasinc/minio-mc v0.0.0-20230331094413-3947d76f8f35 h1:BKw75/V/YWxH1+Q78YDoeCm7jwn420hZZyQKL6WzZz4=

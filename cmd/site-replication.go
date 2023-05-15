@@ -3447,7 +3447,7 @@ func (c *SiteReplicationSys) SiteReplicationMetaInfo(ctx context.Context, objAPI
 				return info, errSRBackendIssue(errG)
 			}
 			groupDescMap := make(map[string]madmin.GroupDesc, len(groups))
-			for _, g := range groups {
+			for g := range groups {
 				groupDescMap[g], errG = globalIAMSys.GetGroupDescription(g)
 				if errG != nil {
 					return info, errSRBackendIssue(errG)
