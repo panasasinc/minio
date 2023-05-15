@@ -830,35 +830,33 @@ func (store *IAMStoreSys) GetGroupDescription(group string) (gd madmin.GroupDesc
 	}, nil
 }
 
-// ListGroups - lists groups. Since this is not going to be a frequent
-// operation, we fetch this info from storage, and refresh the cache as well.
-func (store *IAMStoreSys) ListGroups(ctx context.Context) (res []string, err error) {
+func (store *IAMStoreSys) ListGroups(ctx context.Context) (res map[string]madmin.GroupDesc, err error) {
+	res = make(map[string]madmin.GroupDesc)
 	cache := store.lock()
 	defer store.unlock()
 
 	if store.getUsersSysType() == MinIOUsersSysType {
-		m := map[string]GroupInfo{}
-		err = store.loadGroups(ctx, m)
-		if err != nil {
-			return
+		for k, gi := range cache.iamGroupsMap {
+			var policy string
+			pm, ok := cache.iamGroupPolicyMap[k]
+			if ok {
+				policy = pm.Policies
+			}
+			res[k] = madmin.GroupDesc{
+				Name:      k,
+				Status:    gi.Status,
+				Members:   gi.Members,
+				Policy:    policy,
+				UpdatedAt: gi.UpdatedAt,
+			}
 		}
-		cache.iamGroupsMap = m
-		cache.updatedAt = time.Now()
-		for k := range cache.iamGroupsMap {
-			res = append(res, k)
-		}
-	}
-
-	if store.getUsersSysType() == LDAPUsersSysType {
-		m := map[string]MappedPolicy{}
-		err = store.loadMappedPolicies(ctx, stsUser, true, m)
-		if err != nil {
-			return
-		}
-		cache.iamGroupPolicyMap = m
-		cache.updatedAt = time.Now()
-		for k := range cache.iamGroupPolicyMap {
-			res = append(res, k)
+	} else if store.getUsersSysType() == LDAPUsersSysType {
+		for k, pm := range cache.iamGroupPolicyMap {
+			res[k] = madmin.GroupDesc{
+				Name:      k,
+				Policy:    pm.Policies,
+				UpdatedAt: pm.UpdatedAt,
+			}
 		}
 	}
 

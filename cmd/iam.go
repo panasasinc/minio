@@ -1416,7 +1416,7 @@ func (sys *IAMSys) GetGroupDescription(group string) (gd madmin.GroupDesc, err e
 }
 
 // ListGroups - lists groups.
-func (sys *IAMSys) ListGroups(ctx context.Context) (r []string, err error) {
+func (sys *IAMSys) ListGroups(ctx context.Context) (r map[string]madmin.GroupDesc, err error) {
 	if !sys.Initialized() {
 		return r, errServerNotInitialized
 	}
