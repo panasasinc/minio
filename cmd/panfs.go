@@ -563,18 +563,18 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	var bucketPanFSPath string
 	var bucketMetaDir string
 
-	if retainSlash(opts.PanFSBucketPath) != retainSlash(globalPanFSDefaultBucketPath) {
-		// Mapping to an existing folder
-		bucketPanFSPath = opts.PanFSBucketPath
-		bucketMetaDir = pathJoin(opts.PanFSBucketPath, panfsMetaDir)
+	bucketPanFSPath = strings.TrimSpace(opts.PanFSBucketPath)
+	if bucketPanFSPath == "" {
+		// use default path for new bucket
+		bucketPanFSPath = pathJoin(fs.fsPath, bucket)
+		bucketMetaDir = pathJoin(bucketPanFSPath, panfsMetaDir)
+		dirs = append(dirs, bucketPanFSPath)
 	} else {
-		// Panfs path is the default path - create bucket directory inside
-		bucketPanFSPath = pathJoin(opts.PanFSBucketPath, bucket)
-		bucketMetaDir = pathJoin(opts.PanFSBucketPath, bucket, panfsMetaDir)
-		dirs = append(dirs, pathJoin(opts.PanFSBucketPath, bucket))
+		bucketPanFSPath = pathJoin(opts.PanFSBucketPath)
+		bucketMetaDir = pathJoin(bucketPanFSPath, panfsMetaDir)
 	}
 
-	if err := fs.checkBucketPanFSPathNesting(ctx, bucketPanFSPath); err != nil {
+	if err = fs.checkBucketPanFSPathNesting(ctx, bucketPanFSPath); err != nil {
 		return toObjectErr(err, bucket)
 	}
 	dirs = append(dirs,
@@ -584,7 +584,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		pathJoin(bucketMetaDir, mpartMetaPrefix))
 	for _, dir := range dirs {
 		// If the directory for bucket has already exist then just skip err volume
-		if err := fsMkdir(ctx, dir); err != nil && !errors.Is(err, errVolumeExists) {
+		if err = fsMkdir(ctx, dir); err != nil && !errors.Is(err, errVolumeExists) {
 			return toObjectErr(err)
 		}
 	}
