@@ -225,6 +225,7 @@ func TestGetBucketPanFSPathHandler(t *testing.T) {
 func testGetBucketPanFSPathHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
 	credentials auth.Credentials, t *testing.T,
 ) {
+	fs := obj.(*PANFSObjects)
 	// test cases with sample input and expected output.
 	testCases := []struct {
 		bucketName string
@@ -244,7 +245,7 @@ func testGetBucketPanFSPathHandler(obj ObjectLayer, instanceType, bucketName str
 			secretKey:          credentials.SecretKey,
 			expectedRespStatus: http.StatusOK,
 			panFSResponse: []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<PanFSPath>` + pathJoin(globalPanFSDefaultBucketPath, bucketName+"/") + `</PanFSPath>`),
+<PanFSPath>` + pathJoin(fs.fsPath, bucketName+"/") + `</PanFSPath>`),
 			errorResponse: APIErrorResponse{},
 			shouldPass:    true,
 		},

@@ -155,7 +155,7 @@ var (
 	globalGatewayName = ""
 
 	// Default path to the bucket in PanFS. Only for PanFS gateway mode
-	globalPanFSDefaultBucketPath = ""
+	//globalPanFSDefaultBucketPath = ""
 
 	// Allow Admin API endpoints only from localhost. Only for PanFS gateway mode
 	globalPanFSOnlyLocalAdminAPI = true
