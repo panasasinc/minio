@@ -324,7 +324,9 @@ func (fs *PANFSObjects) CopyObjectPart(ctx context.Context, srcBucket, srcObject
 // written to '<bucketPath>/.s3/tmp' location and safely renamed to
 // '<bucketPath>/.s3/multipart' for reach parts.
 func (fs *PANFSObjects) PutObjectPart(ctx context.Context, bucket, object, uploadID string, partID int, r *PutObjReader, opts ObjectOptions) (pi PartInfo, e error) {
-	originalNodeDataSerial, ok := opts.UserDefined[ReservedMetadataPrefix+"multipart-original-node-dataserial"]
+	fsMeta, err := fs.readMultipartUploadMeta(ctx, bucket, object, uploadID)
+	// TODO:llorens: handle err
+	originalNodeDataSerial, ok := fsMeta.Meta[ReservedMetadataPrefix+"multipart-original-node-dataserial"]
 	if !ok || originalNodeDataSerial != fs.nodeDataSerial {
 		// The multipart upload has not been initialized on this node.
 		return pi, InvalidUploadID{
