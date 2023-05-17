@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/minio/minio/internal/filelock"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -114,8 +115,10 @@ type PANFSObjects struct {
 // Represents the background append file.
 type panfsAppendFile struct {
 	sync.Mutex
-	parts    []PartInfo // List of parts appended.
-	filePath string     // Absolute path of the file in the temp location.
+	flock        *filelock.FileLock
+	lastModified time.Time
+	parts        []PartInfo // List of parts appended.
+	filePath     string     // Absolute path of the file in the temp location.
 }
 
 // Initializes meta volume on all the fs path.
