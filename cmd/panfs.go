@@ -29,6 +29,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,6 +40,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/set"
 	"github.com/minio/minio-go/v7/pkg/tags"
 	"github.com/minio/minio/internal/color"
 	"github.com/minio/minio/internal/config"
@@ -55,7 +57,6 @@ import (
 )
 
 const (
-	panfsBucketListPrefix     = "buckets"
 	panfsConfigAgentNamespace = "s3"
 )
 
@@ -70,6 +71,8 @@ const (
 	panfsS3TmpDir       = panfsMetaDir + SlashSeparator + tmpDir
 	panfsS3MetadataDir  = panfsMetaDir + SlashSeparator + objMetadataDir
 )
+
+var BucketMetadataBinRegexp = regexp.MustCompile(`buckets/[^/]+/.metadata.bin`)
 
 // PANFSObjects - Implements panfs object layer.
 type PANFSObjects struct {
@@ -598,12 +601,6 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	}
 	globalBucketMetadataCache.Set(bucket, meta)
 
-	if fs.configAgent != nil {
-		if err := fs.configAgent.PutObject(pathJoin(panfsBucketListPrefix, bucket), nil); err != nil {
-			return err
-		}
-	}
-
 	globalBucketMetadataSys.Set(bucket, meta)
 
 	return nil
@@ -691,14 +688,21 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		// We need "buckets/" here, not "buckets" to list all the
 		// objects included in the "buckets" directory but ignore a
 		// directory/object whose name would begin with "buckets".
-		entries, err = fs.configAgent.GetObjectsList(panfsBucketListPrefix + SlashSeparator)
-
+		prefix := pathJoin(minioMetaBucket, bucketMetaPrefix, SlashSeparator)
+		entries, err = fs.configAgent.GetObjectsList(prefix)
 		if err == nil {
+			bucketSet := set.NewStringSet()
 			// The entries will have a prefix. In order to get the
 			// names of the buffers, we need to remove the prefixes.
-			for idx, entry := range entries {
-				entries[idx] = strings.TrimPrefix(entry, panfsBucketListPrefix+SlashSeparator)
+			for _, entry := range entries {
+				entry = strings.TrimPrefix(entry, prefix)
+				slashIdx := strings.Index(entry, SlashSeparator)
+				if slashIdx >= 0 {
+					entry = entry[:slashIdx]
+				}
+				bucketSet.Add(entry)
 			}
+			entries = bucketSet.ToSlice()
 		}
 	} else {
 		// Read bucket list from folder where theirs metadata are stored
@@ -775,13 +779,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 	}
 
 	globalBucketMetadataCache.Delete(bucket)
-	if fs.configAgent != nil {
-		noLockID := ""
-		if err = fs.configAgent.DeleteObject(
-			pathJoin(panfsBucketListPrefix, bucket), noLockID); err != nil {
-			return toObjectErr(err, bucket)
-		}
-	} else {
+	if fs.configAgent == nil {
 		if err = fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket)); err != nil {
 			return toObjectErr(err, bucket)
 		}
@@ -1500,8 +1498,12 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 	// Delete the object.
 	if fs.isConfigAgentObject(bucket, object) {
 		objectName := pathJoin(bucket, object)
-		noLock := ""
-		err = fs.configAgent.DeleteObject(objectName, noLock)
+		if opts.DeletePrefix {
+			err = fs.configAgent.DeleteObjectsByPrefix(objectName)
+		} else {
+			noLock := ""
+			err = fs.configAgent.DeleteObject(objectName, noLock)
+		}
 	} else {
 		err = fsDeleteFile(ctx, pathJoin(bucketDir), pathJoin(bucketDir, object))
 	}
@@ -1906,13 +1908,16 @@ func (fs *PANFSObjects) isConfigAgentObject(bucket, object string) bool {
 	}
 
 	switch {
-	case strings.HasPrefix(object, "buckets/"):
-		return false
 	case strings.HasPrefix(object, "multipart/"):
 		return false
 	case strings.HasPrefix(object, "tmp/"):
 		return false
 	case object == formatConfigFile:
+		return false
+	// Moving only the bucket metadata to the config agent
+	case BucketMetadataBinRegexp.MatchString(object):
+		return true
+	case strings.HasPrefix(object, "buckets/"):
 		return false
 	}
 

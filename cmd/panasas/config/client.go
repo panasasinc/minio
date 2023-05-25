@@ -125,7 +125,8 @@ func closeResponseBody(resp *http.Response) {
 	}
 }
 
-// GetObjectsList returns a list of objects
+// GetObjectsList returns a list of objects with names beginning with the
+// specified prefix.
 func (c *Client) GetObjectsList(prefix string) ([]string, error) {
 	req, err := c.makeConfigAgentRequest("configs")
 	if err != nil {
@@ -223,8 +224,7 @@ func (c *Client) GetObject(objectName string) (dataReader io.ReadCloser, oi *Obj
 	return resp.Body, oi, nil
 }
 
-// DeleteObject requests an object to be deleted from the config agent
-func (c *Client) DeleteObject(objectName string, lockID ...string) error {
+func (c *Client) deleteObjects(objectName string, byPrefix bool, lockID ...string) error {
 	base := "configs"
 
 	req, err := c.makeConfigAgentRequest(base, objectName)
@@ -235,10 +235,17 @@ func (c *Client) DeleteObject(objectName string, lockID ...string) error {
 
 	req.Method = http.MethodDelete
 
+	q := req.URL.Query()
+	hasQuery := false
 	if len(lockID) != 0 && lockID[0] != "" {
-		q := req.URL.Query()
 		q.Add("lock_id", lockID[0])
-
+		hasQuery = true
+	}
+	if byPrefix {
+		q.Add("by_prefix", "true")
+		hasQuery = true
+	}
+	if hasQuery {
 		req.URL.RawQuery = q.Encode()
 	}
 
@@ -264,6 +271,17 @@ func (c *Client) DeleteObject(objectName string, lockID ...string) error {
 	revision := ni.Revision
 	c.configRevision = &revision
 	return nil
+}
+
+// DeleteObject deletes an object with matching name
+func (c *Client) DeleteObject(objectName string, lockID ...string) error {
+	return c.deleteObjects(objectName, false, lockID...)
+}
+
+// DeleteObjectsByPrefix deletes all objects with names starting with the
+// specified prefix.
+func (c *Client) DeleteObjectsByPrefix(prefix string) error {
+	return c.deleteObjects(prefix, true)
 }
 
 // PutObject stores an object of a given name in the config agent
