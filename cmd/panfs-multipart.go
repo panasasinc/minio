@@ -58,7 +58,7 @@ func (fs *PANFSObjects) getObjectBackgroundAppendPath(bucketPath, object, upload
 }
 
 // getPanFSMultipartAppendFile returns and initialize panfsAppendFile struct
-func (fs *PANFSObjects) getPanFSMultipartAppendFile(ctx context.Context, bucketPath, object, uploadID string) *panfsAppendFile {
+func (fs *PANFSObjects) getPanFSMultipartAppendFile(bucketPath, object, uploadID string) *panfsAppendFile {
 	fsMetaPath := pathJoin(fs.getUploadIDDir(bucketPath, "", object, uploadID), fs.metaJSONFile)
 
 	flock, err := filelock.New(fsMetaPath)
@@ -97,7 +97,6 @@ func (fs *PANFSObjects) decodePartFile(name string) (partNumber int, etag string
 
 // Appends parts to an appendFile sequentially.
 func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, uploadID string) {
-
 	logger.GetReqInfo(ctx).AppendTags("uploadID", uploadID)
 	bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
 	if err != nil {
@@ -107,47 +106,34 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	fs.appendFileMapMu.Lock()
 	file := fs.appendFileMap[uploadID]
 	if file == nil {
-		file = fs.getPanFSMultipartAppendFile(ctx, bucketPath, object, uploadID)
+		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
 		if file == nil {
-			// TODO: log error or just skip?
 			fs.appendFileMapMu.Unlock()
 			return
 		}
 		fs.appendFileMap[uploadID] = file
 	}
 	fs.appendFileMapMu.Unlock()
-
 	if !file.flock.TryLock() {
 		return
 	}
 	defer file.flock.Unlock()
 
-	fsMetaPath := pathJoin(fs.getUploadIDDir(bucketPath, "", object, uploadID), fs.metaJSONFile)
-	fi, err := fsStatFile(ctx, fsMetaPath)
+	fsMeta := panfsMeta{}
+	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
+	fsMetaBuf, err := xioutil.ReadFile(pathJoin(uploadIDDir, fs.metaJSONFile))
 	if err != nil {
-		logger.LogIf(ctx, err, logger.Application)
+		return
+	}
+	if err = json.Unmarshal(fsMetaBuf, &fsMeta); err != nil {
 		return
 	}
 
-	// Read parts info from metafile if stored mod time is not equal to the one from stat info
-	if file.lastModified != fi.ModTime() {
-		fsMeta := panfsMeta{}
-		fsMetaBuf, err := xioutil.ReadFile(fsMetaPath)
-		if err != nil {
-			logger.LogIf(ctx, err, logger.Application)
-			return
-		}
-		err = json.Unmarshal(fsMetaBuf, &fsMeta)
-		if err != nil {
-			logger.LogIf(ctx, err, logger.Application)
-			return
-		}
-		file.parts = fsMeta.Appended
-	}
+	// There is no need to compare parts from memory and from meta file as in any way we need to write update to the
+	// metafile after bg append. Probably in that case we even do not need to store mpart append info in map
 
-	// Since we append sequentially nextPartNumber will always be len(file.parts)+1
-	nextPartNumber := len(file.parts) + 1
-	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
+	// Since we append sequentially nextPartNumber will always be len(fsMeta.Appended)+1
+	nextPartNumber := len(fsMeta.Appended) + 1
 
 	entries, err := readDir(uploadIDDir)
 	if err != nil {
@@ -157,16 +143,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	}
 	sort.Strings(entries)
 
-	fsMeta := panfsMeta{}
-
 	// Read saved fs metadata for ongoing multipart.
-	fsMetaBuf, err := xioutil.ReadFile(pathJoin(uploadIDDir, fs.metaJSONFile))
-	if err != nil {
-	}
-	err = json.Unmarshal(fsMetaBuf, &fsMeta)
-	if err != nil {
-		return
-	}
 
 	for _, entry := range entries {
 		if entry == fs.metaJSONFile {
@@ -208,17 +185,8 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		return
 	}
 
-	if err = ioutil.WriteFile(pathJoin(uploadIDDir, fs.metaJSONFile), fsMetaBytes, 0o666); err != nil {
-		logger.LogIf(ctx, err)
-		return
-	}
-
-	fi, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
-	if err != nil {
-		logger.LogIf(ctx, err)
-		return
-	}
-	file.lastModified = fi.ModTime()
+	// TODO: replace with create - rename file
+	os.WriteFile(pathJoin(uploadIDDir, fs.metaJSONFile), fsMetaBytes, 0o666)
 }
 
 // ListMultipartUploads - lists all the uploadIDs for the specified object.
@@ -266,7 +234,7 @@ func (fs *PANFSObjects) ListMultipartUploads(ctx context.Context, bucket, object
 		uploads = append(uploads, MultipartInfo{
 			Object:    object,
 			UploadID:  strings.TrimSuffix(uploadID, SlashSeparator),
-			Initiated: fi.ModTime(),
+			Initiated: getBirthTime(fi),
 		})
 	}
 	sort.Slice(uploads, func(i int, j int) bool {
@@ -339,6 +307,7 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 	}
 
 	// Creates dir for background append procedure
+	// This should be created in make bucket function
 	err = mkdirAll(pathJoin(bucketPath, panfsS3TmpDir, bgAppendsDirName), 0o755)
 	if err != nil {
 		logger.LogIf(ctx, err)
@@ -691,7 +660,6 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		return oi, toObjectErr(err, bucket)
 	}
 	defer NSUpdated(bucket, object)
-
 	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
 	// Just check if the uploadID exists to avoid copy if it doesn't.
 	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
@@ -796,12 +764,11 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	delete(fs.appendFileMap, uploadID)
 	fs.appendFileMapMu.Unlock()
 
+	// Take a lock before reading parts and do complete upload stuff
+	file.flock.Lock()
+	defer file.flock.Unlock()
+
 	if file != nil {
-		err = file.flock.Lock()
-		if err != nil {
-			return ObjectInfo{}, err
-		}
-		defer file.flock.Unlock()
 		// Verify that appendFile has all the parts.
 		if len(file.parts) == len(parts) {
 			for i := range parts {
@@ -969,7 +936,6 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 	fs.appendFileMapMu.Unlock()
 
 	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
-	// Just check if the uploadID exists to avoid copy if it doesn't.
 	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
 	if err != nil {
 		if err == errFileNotFound || err == errFileAccessDenied {
