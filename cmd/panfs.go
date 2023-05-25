@@ -598,12 +598,6 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	}
 	globalBucketMetadataCache.Set(bucket, meta)
 
-	if fs.configAgent != nil {
-		if err := fs.configAgent.PutObject(pathJoin(panfsBucketListPrefix, bucket), nil); err != nil {
-			return err
-		}
-	}
-
 	globalBucketMetadataSys.Set(bucket, meta)
 
 	return nil
@@ -691,13 +685,15 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		// We need "buckets/" here, not "buckets" to list all the
 		// objects included in the "buckets" directory but ignore a
 		// directory/object whose name would begin with "buckets".
-		entries, err = fs.configAgent.GetObjectsList(panfsBucketListPrefix + SlashSeparator)
+		prefix := pathJoin(minioMetaBucket, bucketMetaPrefix, SlashSeparator)
+		entries, err = fs.configAgent.GetObjectPrefixes(prefix, SlashSeparator)
 
 		if err == nil {
-			// The entries will have a prefix. In order to get the
-			// names of the buffers, we need to remove the prefixes.
+			// The entries will begin with the prefix. In order to
+			// get the names of the buckets, we need to remove it
+			// from each entry.
 			for idx, entry := range entries {
-				entries[idx] = strings.TrimPrefix(entry, panfsBucketListPrefix+SlashSeparator)
+				entries[idx] = strings.TrimPrefix(entry, prefix)
 			}
 		}
 	} else {
@@ -776,9 +772,8 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 
 	globalBucketMetadataCache.Delete(bucket)
 	if fs.configAgent != nil {
-		noLockID := ""
-		if err = fs.configAgent.DeleteObject(
-			pathJoin(panfsBucketListPrefix, bucket), noLockID); err != nil {
+		prefix := pathJoin(minioMetaBucket, bucketMetaPrefix, bucket, SlashSeparator)
+		if err = fs.configAgent.DeleteObjectsByPrefix(prefix); err != nil {
 			return toObjectErr(err, bucket)
 		}
 	} else {
@@ -1500,8 +1495,12 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 	// Delete the object.
 	if fs.isConfigAgentObject(bucket, object) {
 		objectName := pathJoin(bucket, object)
-		noLock := ""
-		err = fs.configAgent.DeleteObject(objectName, noLock)
+		if opts.DeletePrefix {
+			err = fs.configAgent.DeleteObjectsByPrefix(objectName)
+		} else {
+			noLock := ""
+			err = fs.configAgent.DeleteObject(objectName, noLock)
+		}
 	} else {
 		err = fsDeleteFile(ctx, pathJoin(bucketDir), pathJoin(bucketDir, object))
 	}
@@ -1911,7 +1910,8 @@ func (fs *PANFSObjects) isConfigAgentObject(bucket, object string) bool {
 
 	switch {
 	case strings.HasPrefix(object, "buckets/"):
-		return false
+		// NOTE:llorens: moving bucket metadata to the config agent
+		return true
 	case strings.HasPrefix(object, "multipart/"):
 		return false
 	case strings.HasPrefix(object, "tmp/"):

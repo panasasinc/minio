@@ -125,8 +125,7 @@ func closeResponseBody(resp *http.Response) {
 	}
 }
 
-// GetObjectsList returns a list of objects
-func (c *Client) GetObjectsList(prefix string) ([]string, error) {
+func (c *Client) listConfigObjects(prefix, delimiter string) ([]string, error) {
 	req, err := c.makeConfigAgentRequest("configs")
 	if err != nil {
 		log.Printf("Failed preparing HTTP request object for /objects with prefix %q: %s\n", prefix, err)
@@ -135,6 +134,9 @@ func (c *Client) GetObjectsList(prefix string) ([]string, error) {
 
 	q := req.URL.Query()
 	q.Add("prefix", prefix)
+	if delimiter != "" {
+		q.Add("delimiter", delimiter)
+	}
 	req.URL.RawQuery = q.Encode()
 
 	resp, err := c.httpClient.Do(req)
@@ -161,6 +163,40 @@ func (c *Client) GetObjectsList(prefix string) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+// GetObjectsList returns a list of objects with names beginning with the
+// specified prefix.
+func (c *Client) GetObjectsList(prefix string) ([]string, error) {
+	return c.listConfigObjects(prefix, "")
+}
+
+// GetObjectPrefixes returns a list of shared object name prefixes.
+//
+// GetObjectPrefixes will group the objects with names matching the specified
+// prefix by trimming the parts beginning after the first occurrence of the
+// delimiter after the prefix.
+// E.g. let's assume 5 objects are stored with the following keys:
+// - "/home/user1/object1"
+// - "/home/user1/object2"
+// - "/home/user2/object1"
+// - "/home/user2/object2"
+// - "/etc/share_object"
+// In this case GetObjectPrefixes("/home/", "/") will return the following list
+// of common prefixes:
+// - "/home/user1",
+// - "/home/user2".
+//
+// This will be done by performing the following algorithm:
+// /home/                 - prefix
+// /home/user1/object1    - object name
+// ^^^^^^                 - matches the prefix
+//
+//            ^           - is the first delimiter AFTER the prefix
+//
+//            ^^^^^^^^    - delimiter with the following part is trimmed
+func (c *Client) GetObjectPrefixes(prefix, delimiter string) ([]string, error) {
+	return c.listConfigObjects(prefix, delimiter)
 }
 
 // GetObject returns an object:
@@ -223,8 +259,7 @@ func (c *Client) GetObject(objectName string) (dataReader io.ReadCloser, oi *Obj
 	return resp.Body, oi, nil
 }
 
-// DeleteObject requests an object to be deleted from the config agent
-func (c *Client) DeleteObject(objectName string, lockID ...string) error {
+func (c *Client) deleteObjects(objectName string, byPrefix bool, lockID ...string) error {
 	base := "configs"
 
 	req, err := c.makeConfigAgentRequest(base, objectName)
@@ -235,10 +270,17 @@ func (c *Client) DeleteObject(objectName string, lockID ...string) error {
 
 	req.Method = http.MethodDelete
 
+	q := req.URL.Query()
+	hasQuery := false
 	if len(lockID) != 0 && lockID[0] != "" {
-		q := req.URL.Query()
 		q.Add("lock_id", lockID[0])
-
+		hasQuery = true
+	}
+	if byPrefix {
+		q.Add("by_prefix", "1")
+		hasQuery = true
+	}
+	if hasQuery {
 		req.URL.RawQuery = q.Encode()
 	}
 
@@ -264,6 +306,17 @@ func (c *Client) DeleteObject(objectName string, lockID ...string) error {
 	revision := ni.Revision
 	c.configRevision = &revision
 	return nil
+}
+
+// DeleteObject deletes an object with matching name
+func (c *Client) DeleteObject(objectName string, lockID ...string) error {
+	return c.deleteObjects(objectName, false, lockID...)
+}
+
+// DeleteObjectsByPrefix deletes all objects with names starting with the
+// specified prefix.
+func (c *Client) DeleteObjectsByPrefix(prefix string) error {
+	return c.deleteObjects(prefix, true)
 }
 
 // PutObject stores an object of a given name in the config agent
