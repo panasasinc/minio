@@ -37,7 +37,7 @@ func New(path string) (*FileLock, error) {
 func (l *FileLock) Lock() error {
 	l.mutex.Lock()
 
-	file, err := os.OpenFile(l.path, os.O_RDWR, os.ModeExclusive)
+	file, err := os.OpenFile(l.path, os.O_RDWR, 0660)
 	if err != nil {
 		return ErrorCannotCreateFind
 	}
@@ -78,11 +78,13 @@ func (l *FileLock) TryLock() bool {
 
 func (l *FileLock) Unlock() {
 	if l.file == nil {
-		panic(ErrorNotLocked)
+		return
+		//panic(ErrorNotLocked)
 	}
 	err := l.file.Close()
 	if err != nil {
-		panic(err)
+		return
+		//panic(err)
 
 	}
 	l.file = nil
