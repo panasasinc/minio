@@ -46,6 +46,12 @@ func (fs *PANFSObjects) getUploadIDDir(bucketPath, _, object, uploadID string) s
 	return pathJoin(bucketPath, panfsS3MultipartDir, getSHA256Hash([]byte(object)), uploadID)
 }
 
+// getMultipartLockFile returns path to the lock file based on bucket, object and uploadID
+// Returns EXPORT/bucket/.s3/multipart/SHA256/uploadid.lock
+func (fs *PANFSObjects) getMultipartLockFile(bucketPath, object, uploadID string) string {
+	return pathJoin(fs.getMultipartSHADir(bucketPath, "", object), uploadID+".lock")
+}
+
 // Returns EXPORT/bucket/.s3/multipart/SHA256
 func (fs *PANFSObjects) getMultipartSHADir(bucketPath, _, object string) string {
 	return pathJoin(bucketPath, panfsS3MultipartDir, getSHA256Hash([]byte(object)))
@@ -59,9 +65,7 @@ func (fs *PANFSObjects) getObjectBackgroundAppendPath(bucketPath, object, upload
 
 // getPanFSMultipartAppendFile returns and initialize panfsAppendFile struct
 func (fs *PANFSObjects) getPanFSMultipartAppendFile(bucketPath, object, uploadID string) *panfsAppendFile {
-	fsMetaPath := pathJoin(fs.getUploadIDDir(bucketPath, "", object, uploadID), fs.metaJSONFile)
-
-	flock, err := filelock.New(fsMetaPath)
+	flock, err := filelock.New(fs.getMultipartLockFile(bucketPath, object, uploadID))
 	if err != nil {
 		return nil
 	}
@@ -96,7 +100,7 @@ func (fs *PANFSObjects) decodePartFile(name string) (partNumber int, etag string
 }
 
 // Appends parts to an appendFile sequentially.
-func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, uploadID string) {
+func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, uploadID string, need_flock bool) {
 	logger.GetReqInfo(ctx).AppendTags("uploadID", uploadID)
 	bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
 	if err != nil {
@@ -114,27 +118,24 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		fs.appendFileMap[uploadID] = file
 	}
 	fs.appendFileMapMu.Unlock()
-	if !file.flock.TryLock() {
-		return
-	}
-	defer file.flock.Unlock()
 
-	fsMeta := panfsMeta{}
-	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
-	fsMetaBuf, err := xioutil.ReadFile(pathJoin(uploadIDDir, fs.metaJSONFile))
+	// No need to take a lock when bgAppend called from CompleteMultipartUpload which has been already taken the lock
+	if need_flock {
+		if !file.flock.TryLock() {
+			return
+		}
+		defer file.flock.Unlock()
+	}
+
+	fsMeta, err := fs.readMultipartMeta(bucketPath, object, uploadID)
 	if err != nil {
 		return
 	}
-	if err = json.Unmarshal(fsMetaBuf, &fsMeta); err != nil {
-		return
-	}
-
-	// There is no need to compare parts from memory and from meta file as in any way we need to write update to the
-	// metafile after bg append. Probably in that case we even do not need to store mpart append info in map
-
 	// Since we append sequentially nextPartNumber will always be len(fsMeta.Appended)+1
-	nextPartNumber := len(fsMeta.Appended) + 1
+	appendedLen := len(fsMeta.Appended)
+	nextPartNumber := appendedLen + 1
 
+	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
 	entries, err := readDir(uploadIDDir)
 	if err != nil {
 		logger.GetReqInfo(ctx).AppendTags("uploadIDDir", uploadIDDir)
@@ -160,7 +161,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		}
 		if partNumber > nextPartNumber {
 			// Required part number is not yet uploaded.
-			return
+			break
 		}
 
 		partPath := pathJoin(uploadIDDir, entry)
@@ -178,6 +179,11 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		nextPartNumber++
 	}
 
+	// No parts appended - just return. No need to update meta file
+	if appendedLen == len(fsMeta.Appended) {
+		return
+	}
+
 	// Write info about appended parts
 	fsMetaBytes, err := json.Marshal(fsMeta)
 	if err != nil {
@@ -185,8 +191,16 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		return
 	}
 
-	// TODO: replace with create - rename file
-	os.WriteFile(pathJoin(uploadIDDir, fs.metaJSONFile), fsMetaBytes, 0o666)
+	fsMetaTmpPath := pathJoin(bucketPath, panfsS3TmpDir, mustGetUUID())
+	defer fsRemoveFile(ctx, fsMetaTmpPath)
+	if err = os.WriteFile(fsMetaTmpPath, fsMetaBytes, 0o666); err != nil {
+		logger.LogIf(ctx, err)
+		return
+	}
+	if err = PanRenameFile(fsMetaTmpPath, pathJoin(uploadIDDir, fs.metaJSONFile)); err != nil {
+		logger.LogIf(ctx, err)
+		return
+	}
 }
 
 // ListMultipartUploads - lists all the uploadIDs for the specified object.
@@ -307,7 +321,6 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 	}
 
 	// Creates dir for background append procedure
-	// This should be created in make bucket function
 	err = mkdirAll(pathJoin(bucketPath, panfsS3TmpDir, bgAppendsDirName), 0o755)
 	if err != nil {
 		logger.LogIf(ctx, err)
@@ -325,6 +338,12 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 	}
 
 	if err = ioutil.WriteFile(pathJoin(uploadIDDir, fs.metaJSONFile), fsMetaBytes, 0o666); err != nil {
+		logger.LogIf(ctx, err)
+		return nil, err
+	}
+
+	// create lock file for current multipart upload
+	if _, err = os.Create(fs.getMultipartLockFile(bucketPath, object, uploadID)); err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err
 	}
@@ -437,7 +456,7 @@ func (fs *PANFSObjects) PutObjectPart(ctx context.Context, bucket, object, uploa
 		return pi, InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
 	}
 
-	go fs.backgroundAppend(context.Background(), bucket, object, uploadID)
+	go fs.backgroundAppend(context.Background(), bucket, object, uploadID, true)
 
 	fi, err := fsStatFile(ctx, partPath)
 	if err != nil {
@@ -757,31 +776,41 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	// 1. The last PutObjectPart triggers go-routine fs.backgroundAppend, this go-routine has not started yet.
 	// 2. Now CompleteMultipartUpload gets called which sees that lastPart is not appended and starts appending
 	//    from the beginning
-	fs.backgroundAppend(ctx, bucket, object, uploadID)
-
+	// there are no info about mpart upload in memory
 	fs.appendFileMapMu.Lock()
 	file := fs.appendFileMap[uploadID]
-	delete(fs.appendFileMap, uploadID)
+	if file == nil {
+		// This may happen when complete upload is called from node where no parts were uploaded
+		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
+	} else {
+		delete(fs.appendFileMap, uploadID)
+	}
 	fs.appendFileMapMu.Unlock()
 
 	// Take a lock before reading parts and do complete upload stuff
 	file.flock.Lock()
-	defer file.flock.Unlock()
+	defer func() {
+		file.flock.Unlock()
+		fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
+	}()
+	fs.backgroundAppend(ctx, bucket, object, uploadID, false)
 
-	if file != nil {
-		// Verify that appendFile has all the parts.
-		if len(file.parts) == len(parts) {
-			for i := range parts {
-				if parts[i].ETag != file.parts[i].ETag {
-					break
-				}
-				if parts[i].PartNumber != file.parts[i].PartNumber {
-					break
-				}
-				if i == len(parts)-1 {
-					appendFilePath = file.filePath
-					appendFallback = false
-				}
+	mpartMeta, err := fs.readMultipartMeta(bucketPath, object, uploadID)
+	if err != nil {
+		return
+	}
+	// Verify that appendFile has all the parts.
+	if len(mpartMeta.Appended) == len(parts) {
+		for i := range parts {
+			if parts[i].ETag != mpartMeta.Appended[i].ETag {
+				break
+			}
+			if parts[i].PartNumber != mpartMeta.Appended[i].PartNumber {
+				break
+			}
+			if i == len(parts)-1 {
+				appendFilePath = file.filePath
+				appendFallback = false
 			}
 		}
 	}
@@ -845,30 +874,21 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		}
 	}()
 
-	// Read saved fs metadata for ongoing multipart.
-	fsMetaBuf, err := xioutil.ReadFile(pathJoin(uploadIDDir, fs.metaJSONFile))
-	if err != nil {
-		logger.LogIf(ctx, err)
-		return oi, toObjectErr(err, bucket, object)
-	}
-	err = json.Unmarshal(fsMetaBuf, &fsMeta)
-	if err != nil {
-		logger.LogIf(ctx, err)
-		return oi, toObjectErr(err, bucket, object)
-	}
+	// Clean appended info before publishing object metadata
+	mpartMeta.Appended = nil
 	// Save additional metadata.
-	if fsMeta.Meta == nil {
-		fsMeta.Meta = make(map[string]string)
+	if mpartMeta.Meta == nil {
+		mpartMeta.Meta = make(map[string]string)
 	}
 
-	fsMeta.Meta["etag"] = opts.UserDefined["etag"]
-	if fsMeta.Meta["etag"] == "" {
-		fsMeta.Meta["etag"] = getCompleteMultipartMD5(parts)
+	mpartMeta.Meta["etag"] = opts.UserDefined["etag"]
+	if mpartMeta.Meta["etag"] == "" {
+		mpartMeta.Meta["etag"] = getCompleteMultipartMD5(parts)
 	}
 
 	// Save consolidated actual size.
-	fsMeta.Meta[ReservedMetadataPrefix+"actual-size"] = strconv.FormatInt(objectActualSize, 10)
-	if _, err = fsMeta.WriteTo(metaFile); err != nil {
+	mpartMeta.Meta[ReservedMetadataPrefix+"actual-size"] = strconv.FormatInt(objectActualSize, 10)
+	if _, err = mpartMeta.WriteTo(metaFile); err != nil {
 		logger.LogIf(ctx, err)
 		return oi, toObjectErr(err, bucket, object)
 	}
@@ -896,7 +916,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		return oi, toObjectErr(err, bucket, object)
 	}
 
-	return fsMeta.ToObjectInfo(bucket, object, fi), nil
+	return mpartMeta.ToObjectInfo(bucket, object, fi), nil
 }
 
 // AbortMultipartUpload - aborts an ongoing multipart operation
@@ -926,15 +946,6 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 		return toObjectErr(err, bucket)
 	}
 
-	fs.appendFileMapMu.Lock()
-	// Remove file in tmp folder
-	file := fs.appendFileMap[uploadID]
-	if file != nil {
-		fsRemoveFile(ctx, file.filePath)
-	}
-	delete(fs.appendFileMap, uploadID)
-	fs.appendFileMapMu.Unlock()
-
 	uploadIDDir := fs.getUploadIDDir(bucketPath, bucket, object, uploadID)
 	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
 	if err != nil {
@@ -943,6 +954,24 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 		}
 		return toObjectErr(err, bucket, object)
 	}
+
+	fs.appendFileMapMu.Lock()
+	// Remove file in tmp folder
+	file := fs.appendFileMap[uploadID]
+	if file == nil {
+		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
+	} else {
+		fsRemoveFile(ctx, file.filePath)
+	}
+	delete(fs.appendFileMap, uploadID)
+	fs.appendFileMapMu.Unlock()
+
+	file.flock.Lock()
+	// TODO: Use func instead and delete lock file
+	defer func() {
+		file.flock.Unlock()
+		fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
+	}()
 
 	// Purge multipart folders
 	fsTmpObjPath := pathJoin(bucketPath, panfsS3TmpDir, fs.nodeDataSerial, mustGetUUID())
@@ -1053,4 +1082,19 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 			expiryUploadsTimer.Reset(globalAPIConfig.getStaleUploadsCleanupInterval())
 		}
 	}
+}
+
+// readMultipartMeta returns multipart meta info from uploadId directory. This
+// meta file contains info about current progress of multipart upload
+func (fs *PANFSObjects) readMultipartMeta(bucketPath, object, uploadID string) (panfsMeta, error) {
+	fsMeta := panfsMeta{}
+	uploadIDDir := fs.getUploadIDDir(bucketPath, "", object, uploadID)
+	fsMetaBuf, err := xioutil.ReadFile(pathJoin(uploadIDDir, fs.metaJSONFile))
+	if err != nil {
+		return fsMeta, err
+	}
+	if err = json.Unmarshal(fsMetaBuf, &fsMeta); err != nil {
+		return fsMeta, err
+	}
+	return fsMeta, nil
 }
