@@ -506,7 +506,6 @@ func resetGlobalIAMSys() {
 func resetGlobalGw() {
 	globalIsGateway = false
 	globalGatewayName = ""
-	globalPanFSDefaultBucketPath = ""
 }
 
 // Resets all the globals used modified in tests.
@@ -1587,14 +1586,8 @@ func initAPIHandlerTest(ctx context.Context, obj ObjectLayer, endpoints []string
 	// get random bucket name.
 	bucketName := getRandomBucketName()
 
-	opts := MakeBucketOptions{}
-
-	if _, ok := obj.(*PANFSObjects); ok {
-		opts.PanFSBucketPath = globalPanFSDefaultBucketPath
-	}
-
 	// Create bucket.
-	err := obj.MakeBucketWithLocation(context.Background(), bucketName, opts)
+	err := obj.MakeBucketWithLocation(context.Background(), bucketName, MakeBucketOptions{})
 	if err != nil {
 		// failed to create newbucket, return err.
 		return "", nil, fmt.Errorf("failed to create newbucket: %v", err)
@@ -1866,7 +1859,6 @@ func ExecPanFSObjectLayerAPITest(t *testing.T, objAPITest objAPITestType, endpoi
 	t.Setenv(config.EnvPanDefaultGroup, usr.Gid)
 
 	objLayer, fsDir, err := preparePanFS(ctx)
-	globalPanFSDefaultBucketPath = fsDir
 	if err != nil {
 		t.Fatalf("Initialization of object layer failed for single node setup: %s", err)
 	}

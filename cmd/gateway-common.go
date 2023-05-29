@@ -21,7 +21,6 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -392,17 +391,6 @@ func gatewayHandleEnvVars() {
 	}
 
 	if globalGatewayName == PANFSBackendGateway {
-		path := env.Get(config.EnvPanFSBucketPath, "")
-		if path == "" {
-			logger.Fatal(config.ErrMissingEnvPanFSBucketPath(nil),
-				"Unable to get default bucket path in PanFS")
-		}
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			logger.Fatal(config.ErrInvalidDefaultPanFSBucketPath(nil),
-				"Path is not valid")
-		}
-		globalPanFSDefaultBucketPath = path
-
 		panFSOnlyLocalAdminAPI := env.Get("MINIO_PANFS_ONLY_LOCAL_ADMIN_API", "1")
 		if panFSOnlyLocalAdminAPI == "0" {
 			globalPanFSOnlyLocalAdminAPI = false

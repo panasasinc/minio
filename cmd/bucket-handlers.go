@@ -27,7 +27,6 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
-	"os"
 	"path"
 	"sort"
 	"strconv"
@@ -748,20 +747,7 @@ func (api objectAPIHandlers) PutBucketHandler(w http.ResponseWriter, r *http.Req
 	vars := mux.Vars(r)
 	bucket := vars["bucket"]
 
-	// Get PanFS path for bucket only if Minio is running in PanFS Gateway mode
-	// If PanFS path provided in any other mode - just ignore it
-	panfsBucketPath := ""
-	if globalIsGateway && globalGatewayName == PANFSBackendGateway {
-		if panfsPath := r.Header.Get(xhttp.PanFSBucketPath); len(panfsPath) > 0 {
-			if _, err := os.Stat(panfsPath); os.IsNotExist(err) {
-				writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrPanFSBucketPathNotFound), r.URL)
-				return
-			}
-			panfsBucketPath = panfsPath
-		} else {
-			panfsBucketPath = globalPanFSDefaultBucketPath
-		}
-	}
+	panfsBucketPath := r.Header.Get(xhttp.PanFSBucketPath)
 
 	objectLockEnabled := false
 	if vs := r.Header.Get(xhttp.AmzObjectLockEnabled); len(vs) > 0 {

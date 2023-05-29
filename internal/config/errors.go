@@ -151,12 +151,6 @@ var (
 		`Default bucket path should be a valid path in the PanFS`,
 	)
 
-	ErrMissingEnvPanFSBucketPath = newErrFn(
-		"Missing credential environment variable, \""+EnvPanFSBucketPath+"\"",
-		"Environment variable \""+EnvPanFSBucketPath+"\" is missing",
-		`Default PanFS bucket path is expected to be specified via environment variable MINIO_PANFS_BUCKET_PATH`,
-	)
-
 	ErrMissingEnvCredentialRootUser = newErrFn(
 		"Missing credential environment variable, \""+EnvRootUser+"\"",
 		"Environment variable \""+EnvRootUser+"\" is missing",
