@@ -1527,6 +1527,7 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 }
 
 func (fs *PANFSObjects) isLeafDir(bucket string, leafPath string) bool {
+	// TODO: check this...
 	return fs.isObjectDir(bucket, leafPath)
 }
 
@@ -1642,10 +1643,6 @@ func (fs *PANFSObjects) filterOutPanFSS3Dir(entries []string) (filtered []string
 // and the prefix represents an empty directory. An S3 empty directory
 // is also an empty directory in the PanFS backend.
 func (fs *PANFSObjects) isObjectDir(bucketDir, prefix string) bool {
-	if fs.configAgent != nil {
-		entries, err := fs.configAgent.GetObjectsList(pathJoin(bucketDir, prefix, slashSeparator))
-		return err != nil && len(entries) == 0
-	}
 	entries, err := readDirN(pathJoin(bucketDir, prefix), 1)
 	if err != nil {
 		return false
