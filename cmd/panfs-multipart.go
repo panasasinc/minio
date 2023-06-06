@@ -106,7 +106,7 @@ func (fs *PANFSObjects) decodePartFile(name string) (partNumber int, etag string
 }
 
 // Appends parts to an appendFile sequentially.
-func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, uploadID string, need_flock bool) {
+func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, uploadID string, needFlock bool) {
 	logger.GetReqInfo(ctx).AppendTags("uploadID", uploadID)
 	bucketPath, err := fs.getBucketPanFSPath(ctx, bucket)
 	if err != nil {
@@ -126,7 +126,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	fs.appendFileMapMu.Unlock()
 
 	// No need to take a lock when bgAppend called from CompleteMultipartUpload which has been already taken the lock
-	if need_flock {
+	if needFlock {
 		if !file.flock.TryLock() {
 			return
 		}
@@ -141,11 +141,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		logger.LogIf(ctx, err)
 		return
 	}
-	fsParts, err := fs.readMPartUploadParts(bucketPath, object, uploadID)
-	if err != nil {
-		logger.LogIf(ctx, err)
-		return
-	}
+	fsParts := fs.readMPartUploadParts(bucketPath, object, uploadID)
 	// Since we append sequentially nextPartNumber will always be len(fsParts.Appended)+1
 	initialAppendedLen := len(fsParts.Parts)
 	nextPartNumber := initialAppendedLen + 1
@@ -194,11 +190,13 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 
 		uploadIDDirStat, err := fsStatDir(ctx, uploadIDDir)
 		if err != nil {
+			// Do not return at this step - some parts may be appended to the file but not added to meta
 			break
 		}
 		if uploadIDDirStat.ModTime() == prevUploadIDDirStat.ModTime() {
 			break
 		}
+		prevUploadIDDirStat = uploadIDDirStat
 	}
 
 	// No parts appended - just return. No need to update meta file
@@ -219,7 +217,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		logger.LogIf(ctx, err)
 		return
 	}
-	if err = PanRenameFile(fsMetaTmpPath, pathJoin(uploadIDDir, fs.metaJSONFile)); err != nil {
+	if err = PanRenameFile(fsMetaTmpPath, fs.getUploadIDFilePartsPath(bucketPath, object, uploadID)); err != nil {
 		logger.LogIf(ctx, err)
 		return
 	}
@@ -816,10 +814,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	}()
 	fs.backgroundAppend(ctx, bucket, object, uploadID, false)
 
-	fsParts, err := fs.readMPartUploadParts(bucketPath, object, uploadID)
-	if err != nil {
-		return
-	}
+	fsParts := fs.readMPartUploadParts(bucketPath, object, uploadID)
 	// Verify that appendFile has all the parts.
 	if len(fsParts.Parts) == len(parts) {
 		for i := range parts {
@@ -895,7 +890,13 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		}
 	}()
 
-	fsMeta, err = fs.readMultipartMeta(bucketPath, object, uploadID)
+	// Read saved fs metadata for ongoing multipart.
+	fsMetaBuf, err := xioutil.ReadFile(pathJoin(uploadIDDir, fs.metaJSONFile))
+	if err != nil {
+		logger.LogIf(ctx, err)
+		return oi, toObjectErr(err, bucket, object)
+	}
+	err = json.Unmarshal(fsMetaBuf, &fsMeta)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return oi, toObjectErr(err, bucket, object)
@@ -1106,32 +1107,16 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 	}
 }
 
-// readMultipartMeta returns multipart meta info from uploadId directory. This
-// meta file contains info about current progress of multipart upload
-func (fs *PANFSObjects) readMultipartMeta(bucketPath, object, uploadID string) (panfsMeta, error) {
-	fsMeta := panfsMeta{}
-	uploadIDDir := fs.getUploadIDDir(bucketPath, object, uploadID)
-	fsMetaBuf, err := xioutil.ReadFile(pathJoin(uploadIDDir, fs.metaJSONFile))
-	if err != nil {
-		return fsMeta, err
-	}
-	if err = json.Unmarshal(fsMetaBuf, &fsMeta); err != nil {
-		return fsMeta, err
-	}
-	return fsMeta, nil
-}
-
-// readMPartUploadParts returns multipart meta info from uploadId directory. This
-// meta file contains info about current progress of multipart upload
-func (fs *PANFSObjects) readMPartUploadParts(bucketPath, object, uploadID string) (panfsMultiParts, error) {
+// readMPartUploadParts returns panfsMultiParts structure containing list of appended parts.
+func (fs *PANFSObjects) readMPartUploadParts(bucketPath, object, uploadID string) panfsMultiParts {
 	fsParts := panfsMultiParts{}
 	filePartsPath := fs.getUploadIDFilePartsPath(bucketPath, object, uploadID)
 	fsMetaBuf, err := xioutil.ReadFile(filePartsPath)
 	if err != nil {
-		return panfsMultiParts{}, err
+		return panfsMultiParts{}
 	}
 	if err = json.Unmarshal(fsMetaBuf, &fsParts); err != nil {
-		return panfsMultiParts{}, err
+		return panfsMultiParts{}
 	}
-	return fsParts, nil
+	return fsParts
 }
