@@ -119,7 +119,13 @@ type panfsMeta struct {
 	// parts info for current object - used in encryption.
 	Parts []ObjectPartInfo `json:"parts,omitempty"`
 	// appended parts - info needed for multipart upload to multiple minio servers
-	Appended []PartInfo `json:"appended,omitempty"`
+	//Appended []PartInfo `json:"appended,omitempty"`
+}
+
+// A panfsMultiParts stores information about current progress of multipart upload. Each uploaded part from background
+// append procedure should update that structure and write in disk
+type panfsMultiParts struct {
+	Parts []PartInfo `json:"parts,omitempty"`
 }
 
 // IsValid - tells if the format is sane by validating the version
