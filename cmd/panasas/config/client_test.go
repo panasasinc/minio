@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"testing"
@@ -19,7 +20,7 @@ func verifyWriteLocks(t *testing.T) {
 	pc := NewClient(testAgentURL, testConfigNamespace)
 
 	testObjectName1 := "test_write_lock/object/name"
-	lockID1, err := pc.GetObjectLock(testObjectName1, false)
+	lockID1, err := pc.GetObjectLock(context.TODO(), testObjectName1, false)
 	if err != nil {
 		t.Fatalf("Failed getting lock for object %q: %v.\n", testObjectName1, err)
 	}
@@ -28,7 +29,7 @@ func verifyWriteLocks(t *testing.T) {
 		t.Errorf("Got invalid lock ID %q for object %q.\n", lockID1, testObjectName1)
 	}
 
-	lockID1a, err := pc.GetObjectLock(testObjectName1, false)
+	lockID1a, err := pc.GetObjectLock(context.TODO(), testObjectName1, false)
 	if err == nil {
 		t.Fatalf(
 			"Got a second write lock %q for object %q while previous lock %q is in place.\n",
@@ -39,7 +40,7 @@ func verifyWriteLocks(t *testing.T) {
 	}
 
 	testObjectName2 := "test_write_lock/object/name2"
-	lockID2, err := pc.GetObjectLock(testObjectName2, false)
+	lockID2, err := pc.GetObjectLock(context.TODO(), testObjectName2, false)
 	if err != nil {
 		t.Fatalf(
 			"Failed creating write lock for object %q while lock %q for object %q is in place.\n",
@@ -57,15 +58,15 @@ func verifyWriteLocks(t *testing.T) {
 			lockID2,
 		)
 	}
-	if err = pc.ReleaseObjectLock(lockID2); err != nil {
+	if err = pc.ReleaseObjectLock(context.TODO(), lockID2); err != nil {
 		t.Errorf("Releasing lock %q failed: %v.\n", lockID2, err)
 	}
 
-	if err = pc.ReleaseObjectLock(lockID1); err != nil {
+	if err = pc.ReleaseObjectLock(context.TODO(), lockID1); err != nil {
 		t.Errorf("Releasing lock %q failed: %v.\n", lockID1, err)
 	}
 
-	if err = pc.ReleaseObjectLock(lockID1); err != ErrNotFound {
+	if err = pc.ReleaseObjectLock(context.TODO(), lockID1); err != ErrNotFound {
 		if err == nil {
 			t.Errorf("Double lock release of write lock %q on object %q successful but expected failure.\n", lockID1, testObjectName1)
 		} else {
@@ -79,12 +80,12 @@ func verifyWriteLocks(t *testing.T) {
 		}
 	}
 
-	lockID1b, err := pc.GetObjectLock(testObjectName1, false)
+	lockID1b, err := pc.GetObjectLock(context.TODO(), testObjectName1, false)
 	if err != nil {
 		t.Fatalf("Failed getting lock for object %q after releasing the previous lock %q: %v.\n", testObjectName1, lockID1, err)
 	}
 
-	if err = pc.ReleaseObjectLock(lockID1b); err != nil {
+	if err = pc.ReleaseObjectLock(context.TODO(), lockID1b); err != nil {
 		t.Errorf("Releasing lock %q failed: %v.\n", lockID1b, err)
 	}
 }
@@ -94,7 +95,7 @@ func verifyReadLocks(t *testing.T) {
 	pc := NewClient(testAgentURL, testConfigNamespace)
 
 	testObjectName1 := "test_read_lock/object/name"
-	lockID1, err := pc.GetObjectLock(testObjectName1, true)
+	lockID1, err := pc.GetObjectLock(context.TODO(), testObjectName1, true)
 	if err != nil {
 		t.Fatalf("Failed getting lock for object %q: %v.\n", testObjectName1, err)
 	}
@@ -105,7 +106,7 @@ func verifyReadLocks(t *testing.T) {
 
 	var locks [10]string
 	for idx := range locks {
-		newLockID, err := pc.GetObjectLock(testObjectName1, true)
+		newLockID, err := pc.GetObjectLock(context.TODO(), testObjectName1, true)
 		if err != nil {
 			t.Fatalf(
 				"Failed getting %v-th read lock for object %q (first lock %q): %v.\n",
@@ -119,16 +120,16 @@ func verifyReadLocks(t *testing.T) {
 	}
 
 	for _, lockID := range locks {
-		if err = pc.ReleaseObjectLock(lockID); err != nil {
+		if err = pc.ReleaseObjectLock(context.TODO(), lockID); err != nil {
 			t.Errorf("Releasing read lock %q failed: %v.\n", lockID, err)
 		}
 	}
 
-	if err = pc.ReleaseObjectLock(lockID1); err != nil {
+	if err = pc.ReleaseObjectLock(context.TODO(), lockID1); err != nil {
 		t.Errorf("Releasing read lock %q failed: %v.\n", lockID1, err)
 	}
 
-	if err = pc.ReleaseObjectLock(lockID1); err != ErrNotFound {
+	if err = pc.ReleaseObjectLock(context.TODO(), lockID1); err != ErrNotFound {
 		if err == nil {
 			t.Errorf("Double lock release of read lock %q on object %q successful but expected failure.\n", lockID1, testObjectName1)
 		} else {
@@ -148,11 +149,11 @@ func verifyReadLocksWithWriteLock(t *testing.T) {
 	pc := NewClient(testAgentURL, testConfigNamespace)
 
 	testObjectName1 := "test_read_lock_with_write_lock/object/name"
-	writeLockID, _ := pc.GetObjectLock(testObjectName1, false)
+	writeLockID, _ := pc.GetObjectLock(context.TODO(), testObjectName1, false)
 
 	var locks [10]string
 	for range locks {
-		readLockID, err := pc.GetObjectLock(testObjectName1, true)
+		readLockID, err := pc.GetObjectLock(context.TODO(), testObjectName1, true)
 		if err == nil {
 			t.Fatalf(
 				"Managed to get a read lock %q on object %q with write lock %q in place.\n",
@@ -163,10 +164,10 @@ func verifyReadLocksWithWriteLock(t *testing.T) {
 		}
 	}
 
-	pc.ReleaseObjectLock(writeLockID)
+	pc.ReleaseObjectLock(context.TODO(), writeLockID)
 
 	for idx := range locks {
-		readLockID, err := pc.GetObjectLock(testObjectName1, true)
+		readLockID, err := pc.GetObjectLock(context.TODO(), testObjectName1, true)
 		if err != nil {
 			t.Fatalf(
 				"Failed getting read lock on object %q after write lock %q has been released.\n",
@@ -177,7 +178,7 @@ func verifyReadLocksWithWriteLock(t *testing.T) {
 		locks[idx] = readLockID
 	}
 	for _, lockID := range locks {
-		pc.ReleaseObjectLock(lockID)
+		pc.ReleaseObjectLock(context.TODO(), lockID)
 	}
 }
 
@@ -191,12 +192,12 @@ func verifyWriteLockWithReadLock(t *testing.T) {
 	var locks [10]string
 
 	for idx := range locks {
-		newLockID, _ := pc.GetObjectLock(testObjectName1, true)
+		newLockID, _ := pc.GetObjectLock(context.TODO(), testObjectName1, true)
 		locks[idx] = newLockID
 	}
 
 	for _, readLockID := range locks {
-		writeLockID, err := pc.GetObjectLock(testObjectName1, false)
+		writeLockID, err := pc.GetObjectLock(context.TODO(), testObjectName1, false)
 		if err == nil {
 			t.Fatalf(
 				"Managed to get write lock %q for object %q while there are still read-locks in place.\n",
@@ -204,12 +205,12 @@ func verifyWriteLockWithReadLock(t *testing.T) {
 				testObjectName1,
 			)
 		}
-		pc.ReleaseObjectLock(readLockID)
+		pc.ReleaseObjectLock(context.TODO(), readLockID)
 	}
 
 	// All the read locks have been released. Now getting a write lock
 	// should succeed:
-	writeLockID, err := pc.GetObjectLock(testObjectName1, false)
+	writeLockID, err := pc.GetObjectLock(context.TODO(), testObjectName1, false)
 	if err != nil {
 		t.Fatalf(
 			"Failed getting a write-lock on object %q: %v.\n",
@@ -217,7 +218,7 @@ func verifyWriteLockWithReadLock(t *testing.T) {
 			err,
 		)
 	}
-	pc.ReleaseObjectLock(writeLockID)
+	pc.ReleaseObjectLock(context.TODO(), writeLockID)
 }
 
 // verifyWriteLockExpiration – verify that write locks are automatically released
@@ -228,12 +229,12 @@ func verifyWriteLockExpiration(t *testing.T) {
 
 	objectName := "test_write/lock/expiration/object"
 
-	lockID, _ := pc.GetObjectLock(objectName, false)
+	lockID, _ := pc.GetObjectLock(context.TODO(), objectName, false)
 
 	// Verify that expiring write lock does not interfere with write locks:
 	time.Sleep(time.Duration(int(0.9*float64(LockExpirationMilliseconds))) * time.Millisecond)
 	// The lock should still be in place
-	writeLockID, err := pc.GetObjectLock(objectName, false)
+	writeLockID, err := pc.GetObjectLock(context.TODO(), objectName, false)
 	if err == nil {
 		t.Fatalf(
 			"Managed to get a write lock %q on object %q while write lock %q should still be in place.\n",
@@ -245,7 +246,7 @@ func verifyWriteLockExpiration(t *testing.T) {
 	time.Sleep(time.Duration(int(0.2*float64(LockExpirationMilliseconds))) * time.Millisecond)
 
 	// The original write lock should be automatically released after so much time
-	writeLockID, err = pc.GetObjectLock(objectName, false)
+	writeLockID, err = pc.GetObjectLock(context.TODO(), objectName, false)
 	if err != nil {
 		t.Fatalf(
 			"Failed getting write lock on object %q although write lock %q should have expired.\n",
@@ -253,7 +254,7 @@ func verifyWriteLockExpiration(t *testing.T) {
 			lockID,
 		)
 	}
-	if err = pc.ReleaseObjectLock(writeLockID); err != nil {
+	if err = pc.ReleaseObjectLock(context.TODO(), writeLockID); err != nil {
 		t.Fatalf(
 			"Unexpected error while releasing lock %q on object %q: %v.\n",
 			writeLockID,
@@ -262,13 +263,13 @@ func verifyWriteLockExpiration(t *testing.T) {
 		)
 	}
 
-	lockID, _ = pc.GetObjectLock(objectName, false)
+	lockID, _ = pc.GetObjectLock(context.TODO(), objectName, false)
 
 	// Verify that expiring write lock does not interfere with read locks:
 	time.Sleep(time.Duration(int(0.9*float64(LockExpirationMilliseconds))) * time.Millisecond)
 
 	// The lock should still be in place
-	readLockID, err := pc.GetObjectLock(objectName, true)
+	readLockID, err := pc.GetObjectLock(context.TODO(), objectName, true)
 	if err == nil {
 		t.Fatalf(
 			"Managed to get a read lock %q on object %q while write lock %q should still be in place.\n",
@@ -280,7 +281,7 @@ func verifyWriteLockExpiration(t *testing.T) {
 	time.Sleep(time.Duration(int(0.2*float64(LockExpirationMilliseconds))) * time.Millisecond)
 
 	// The original write lock should be automatically released after so much time
-	readLockID, err = pc.GetObjectLock(objectName, true)
+	readLockID, err = pc.GetObjectLock(context.TODO(), objectName, true)
 	if err != nil {
 		t.Fatalf(
 			"Failed getting read lock on object %q although write lock %q should have expired.\n",
@@ -288,7 +289,7 @@ func verifyWriteLockExpiration(t *testing.T) {
 			lockID,
 		)
 	}
-	if err = pc.ReleaseObjectLock(readLockID); err != nil {
+	if err = pc.ReleaseObjectLock(context.TODO(), readLockID); err != nil {
 		t.Fatalf(
 			"Unexpected error while releasing lock %q on object %q: %v.\n",
 			readLockID,
@@ -305,12 +306,12 @@ func verifyReadLockExpiration(t *testing.T) {
 	objectName := "test_read/lock/expiration/object"
 	locks := [10]string{}
 	for idx := range locks {
-		lockID, err := pc.GetObjectLock(objectName, true)
+		lockID, err := pc.GetObjectLock(context.TODO(), objectName, true)
 		if err != nil {
 			t.Fatalf("Failed getting read lock on object %q: %v.\n", objectName, err)
 		}
 		locks[idx] = lockID
-		_, err = pc.GetObjectLock(objectName, false)
+		_, err = pc.GetObjectLock(context.TODO(), objectName, false)
 		if err == nil {
 			t.Fatalf("Got write lock on object %q with %v read locks in place.\n", objectName, idx+1)
 		}
@@ -321,7 +322,7 @@ func verifyReadLockExpiration(t *testing.T) {
 	// 1.5 * lock expiration time has passed since the first read lock was
 	// acquired but only 0.6 * lock expiration time since the last read
 	// lock. This must fail:
-	_, err := pc.GetObjectLock(objectName, false)
+	_, err := pc.GetObjectLock(context.TODO(), objectName, false)
 	if err == nil {
 		t.Fatalf("Got write lock on object %q with read locks in place.\n", objectName)
 	}
@@ -331,14 +332,14 @@ func verifyReadLockExpiration(t *testing.T) {
 
 	// Now all the read locks have expired, we should be able to get a
 	// write lock:
-	writeLockID, err := pc.GetObjectLock(objectName, false)
+	writeLockID, err := pc.GetObjectLock(context.TODO(), objectName, false)
 	if err != nil {
 		t.Fatalf("Failed getting write lock on object %q. Expected all read locks to have expired.\n", objectName)
 	}
 
 	// Releasing all the read locks should return ErrNotFound:
 	for _, lockID := range locks {
-		err = pc.ReleaseObjectLock(lockID)
+		err = pc.ReleaseObjectLock(context.TODO(), lockID)
 		if err == nil {
 			t.Errorf("Releasing expired lock %q for object %q succeeded but expected failure.\n", lockID, objectName)
 		} else if err != ErrNotFound {
@@ -346,7 +347,7 @@ func verifyReadLockExpiration(t *testing.T) {
 		}
 	}
 
-	pc.ReleaseObjectLock(writeLockID)
+	pc.ReleaseObjectLock(context.TODO(), writeLockID)
 }
 
 func verifyWriteOfReadLockedObject(t *testing.T) {
@@ -355,11 +356,11 @@ func verifyWriteOfReadLockedObject(t *testing.T) {
 
 	objectName := "test_write/of/read/locked/object"
 
-	lockID, _ := pc.GetObjectLock(objectName, true)
+	lockID, _ := pc.GetObjectLock(context.TODO(), objectName, true)
 
 	data := bytes.NewReader([]byte("this is some dummy object data"))
 	metadata := "some metadata"
-	err := pc.PutObject(objectName, data, metadata)
+	err := pc.PutObject(context.TODO(), objectName, data, metadata)
 
 	if err == nil {
 		t.Fatalf(
@@ -369,7 +370,7 @@ func verifyWriteOfReadLockedObject(t *testing.T) {
 		)
 	}
 
-	pc.ReleaseObjectLock(lockID)
+	pc.ReleaseObjectLock(context.TODO(), lockID)
 }
 
 // TestWriteAfterReadLockExpires – verify that it is possible to perform
@@ -380,7 +381,7 @@ func verifyWriteAfterReadLockExpires(t *testing.T) {
 
 	objectName := "test_write/after/read/lock/expired"
 
-	lockID, _ := pc.GetObjectLock(objectName, true)
+	lockID, _ := pc.GetObjectLock(context.TODO(), objectName, true)
 	duration := 1.1 * float64(LockExpirationMilliseconds)
 	writeLockExpired := time.After(
 		time.Duration(int64(duration)) * time.Millisecond,
@@ -390,7 +391,7 @@ func verifyWriteAfterReadLockExpires(t *testing.T) {
 	metadata := "some metadata"
 
 	<-writeLockExpired
-	err := pc.PutObject(objectName, data, metadata)
+	err := pc.PutObject(context.TODO(), objectName, data, metadata)
 	if err != nil {
 		t.Fatalf(
 			"Writing of write-locked object %q failed but write lock %q should have expired.",
@@ -399,7 +400,7 @@ func verifyWriteAfterReadLockExpires(t *testing.T) {
 		)
 	}
 
-	pc.ReleaseObjectLock(lockID)
+	pc.ReleaseObjectLock(context.TODO(), lockID)
 }
 
 // TestWriteOfWriteLockedObject – verify that PutObject calls are rejected
@@ -410,11 +411,11 @@ func verifyWriteOfWriteLockedObject(t *testing.T) {
 
 	objectName := "test_incorrect/write/of/write/locked/object"
 
-	lockID, _ := pc.GetObjectLock(objectName, false)
+	lockID, _ := pc.GetObjectLock(context.TODO(), objectName, false)
 
 	data := bytes.NewReader([]byte("this is some dummy object data"))
 	metadata := "some metadata"
-	err := pc.PutObject(objectName, data, metadata)
+	err := pc.PutObject(context.TODO(), objectName, data, metadata)
 
 	if err == nil {
 		t.Fatalf(
@@ -424,7 +425,7 @@ func verifyWriteOfWriteLockedObject(t *testing.T) {
 		)
 	}
 
-	pc.ReleaseObjectLock(lockID)
+	pc.ReleaseObjectLock(context.TODO(), lockID)
 }
 
 // TestWriteAfterWriteLockExpires – verify that it is possible to perform
@@ -435,7 +436,7 @@ func verifyWriteAfterWriteLockExpires(t *testing.T) {
 
 	objectName := "test_write/after/write/lock/expired"
 
-	lockID, _ := pc.GetObjectLock(objectName, false)
+	lockID, _ := pc.GetObjectLock(context.TODO(), objectName, false)
 	duration := 1.1 * float64(LockExpirationMilliseconds)
 	writeLockExpired := time.After(
 		time.Duration(int64(duration)) * time.Millisecond,
@@ -445,7 +446,7 @@ func verifyWriteAfterWriteLockExpires(t *testing.T) {
 	metadata := "some metadata"
 
 	<-writeLockExpired
-	err := pc.PutObject(objectName, data, metadata)
+	err := pc.PutObject(context.TODO(), objectName, data, metadata)
 	if err != nil {
 		t.Fatalf(
 			"Writing of write-locked object %q failed but write lock %q should have expired: %v.",
@@ -455,8 +456,8 @@ func verifyWriteAfterWriteLockExpires(t *testing.T) {
 		)
 	}
 
-	pc.ReleaseObjectLock(lockID)
-	pc.DeleteObject(objectName)
+	pc.ReleaseObjectLock(context.TODO(), lockID)
+	pc.DeleteObject(context.TODO(), objectName)
 }
 
 func verifyWriteWithCorrectLockID(t *testing.T) {
@@ -465,12 +466,12 @@ func verifyWriteWithCorrectLockID(t *testing.T) {
 
 	objectName := "test_write/locked/object/with/correct/lock/id"
 
-	lockID, _ := pc.GetObjectLock(objectName, false)
+	lockID, _ := pc.GetObjectLock(context.TODO(), objectName, false)
 
 	data := bytes.NewReader([]byte("this is some dummy object data"))
 	metadata := "some metadata"
 
-	err := pc.PutObject(objectName, data, metadata, lockID)
+	err := pc.PutObject(context.TODO(), objectName, data, metadata, lockID)
 	if err != nil {
 		t.Fatalf(
 			"Writing of write-locked object %q failed although correct lock ID %q provided: %v",
@@ -480,8 +481,8 @@ func verifyWriteWithCorrectLockID(t *testing.T) {
 		)
 	}
 
-	pc.ReleaseObjectLock(lockID)
-	pc.DeleteObject(objectName)
+	pc.ReleaseObjectLock(context.TODO(), lockID)
+	pc.DeleteObject(context.TODO(), objectName)
 }
 
 func verifyWriteWithIncorrectLockID(t *testing.T) {
@@ -490,13 +491,13 @@ func verifyWriteWithIncorrectLockID(t *testing.T) {
 
 	objectName := "test_write/locked/object/with/incorrect/lock/id"
 
-	lockID, _ := pc.GetObjectLock(objectName, false)
+	lockID, _ := pc.GetObjectLock(context.TODO(), objectName, false)
 	incorrectLockID := "incorrectLockID"
 
 	data := bytes.NewReader([]byte("this is some dummy object data"))
 	metadata := "some metadata"
 
-	err := pc.PutObject(objectName, data, metadata, incorrectLockID)
+	err := pc.PutObject(context.TODO(), objectName, data, metadata, incorrectLockID)
 
 	if err == nil {
 		t.Fatalf(
@@ -507,8 +508,8 @@ func verifyWriteWithIncorrectLockID(t *testing.T) {
 		)
 	}
 
-	pc.ReleaseObjectLock(lockID)
-	pc.DeleteObject(objectName)
+	pc.ReleaseObjectLock(context.TODO(), lockID)
+	pc.DeleteObject(context.TODO(), objectName)
 }
 
 func verifyDeleteWriteLockedObject(t *testing.T) {
@@ -518,11 +519,11 @@ func verifyDeleteWriteLockedObject(t *testing.T) {
 	objectName := "test_delete/of/write/locked/object"
 	data := bytes.NewReader([]byte("some dummy data for " + objectName))
 	metadata := "some metadata for " + objectName
-	pc.PutObject(objectName, data, metadata)
+	pc.PutObject(context.TODO(), objectName, data, metadata)
 
-	lockID, _ := pc.GetObjectLock(objectName, false)
+	lockID, _ := pc.GetObjectLock(context.TODO(), objectName, false)
 
-	err := pc.DeleteObject(objectName)
+	err := pc.DeleteObject(context.TODO(), objectName)
 	if err == nil {
 		t.Fatalf(
 			"Successful deletion of object %q with write lock %q in place but expected failure.",
@@ -531,7 +532,7 @@ func verifyDeleteWriteLockedObject(t *testing.T) {
 		)
 	}
 
-	err = pc.DeleteObject(objectName, lockID)
+	err = pc.DeleteObject(context.TODO(), objectName, lockID)
 	if err != nil {
 		t.Fatalf(
 			"Deletion of write-locked object %q failed although correct lock ID %q provided: %v.",
@@ -541,8 +542,8 @@ func verifyDeleteWriteLockedObject(t *testing.T) {
 		)
 	}
 
-	pc.ReleaseObjectLock(lockID)
-	pc.DeleteObject(objectName)
+	pc.ReleaseObjectLock(context.TODO(), lockID)
+	pc.DeleteObject(context.TODO(), objectName)
 }
 
 func verifyDeleteReadLockedObject(t *testing.T) {
@@ -552,11 +553,11 @@ func verifyDeleteReadLockedObject(t *testing.T) {
 	objectName := "test_delete/of/read/locked/object"
 	data := bytes.NewReader([]byte("some dummy data for " + objectName))
 	metadata := "some metadata for " + objectName
-	pc.PutObject(objectName, data, metadata)
+	pc.PutObject(context.TODO(), objectName, data, metadata)
 
-	lockID, _ := pc.GetObjectLock(objectName, true)
+	lockID, _ := pc.GetObjectLock(context.TODO(), objectName, true)
 
-	err := pc.DeleteObject(objectName)
+	err := pc.DeleteObject(context.TODO(), objectName)
 	if err == nil {
 		t.Fatalf(
 			"Successful deletion of object %q with read lock %q in place but expected failure.",
@@ -565,7 +566,7 @@ func verifyDeleteReadLockedObject(t *testing.T) {
 		)
 	}
 
-	err = pc.DeleteObject(objectName, lockID)
+	err = pc.DeleteObject(context.TODO(), objectName, lockID)
 	if err == nil {
 		t.Fatalf(
 			"Deletion of read-locked object %q succeeded when correct lock ID %q provided but expected failure.",
@@ -574,8 +575,8 @@ func verifyDeleteReadLockedObject(t *testing.T) {
 		)
 	}
 
-	pc.ReleaseObjectLock(lockID)
-	err = pc.DeleteObject(objectName)
+	pc.ReleaseObjectLock(context.TODO(), lockID)
+	err = pc.DeleteObject(context.TODO(), objectName)
 	if err != nil {
 		t.Fatalf(
 			"Deletion of read-locked object %q failed although the lock %q has been released: %v",
@@ -588,12 +589,12 @@ func verifyDeleteReadLockedObject(t *testing.T) {
 
 // Remove objects with a given prefix from the Panasas config agent
 func removeObjects(t *testing.T, pc *Client, prefix string) {
-	names, err := pc.GetObjectsList(prefix)
+	names, err := pc.GetObjectsList(context.TODO(), prefix)
 	if err != nil {
 		t.Fatalf("GetObjectsList(%q) returned error: %v", prefix, err)
 	}
 	for _, name := range names {
-		pc.DeleteObject(name)
+		pc.DeleteObject(context.TODO(), name)
 	}
 }
 
@@ -624,7 +625,7 @@ func verifyGetObjectsList1(t *testing.T) {
 
 	prefix := "test/prefix/test1/"
 	removeObjects(t, pc, prefix)
-	objectNames, err := pc.GetObjectsList(prefix)
+	objectNames, err := pc.GetObjectsList(context.TODO(), prefix)
 	if err != nil {
 		t.Fatalf("GetObjectsList(%q) returned error: %v", prefix, err)
 	}
@@ -645,9 +646,9 @@ func verifyGetObjectsList1(t *testing.T) {
 		"quux/baz",
 	}
 	for _, suffix := range suffixes {
-		pc.PutObject(prefix+suffix, bytes.NewBuffer([]byte{}))
+		pc.PutObject(context.TODO(), prefix+suffix, bytes.NewBuffer([]byte{}))
 	}
-	objectNames, err = pc.GetObjectsList(prefix)
+	objectNames, err = pc.GetObjectsList(context.TODO(), prefix)
 	if err != nil {
 		t.Fatalf("GetObjectsList(%q) returned error: %v", prefix, err)
 	}
@@ -672,7 +673,7 @@ func verifyGetObjectsList2(t *testing.T) {
 
 	prefix := "test/prefix/test2"
 	removeObjects(t, pc, prefix)
-	objectNames, err := pc.GetObjectsList(prefix)
+	objectNames, err := pc.GetObjectsList(context.TODO(), prefix)
 	if err != nil {
 		t.Fatalf("GetObjectsList(%q) returned error: %v", prefix, err)
 	}
@@ -693,9 +694,9 @@ func verifyGetObjectsList2(t *testing.T) {
 		"/foo/quux",
 	}
 	for _, suffix := range suffixes {
-		pc.PutObject(prefix+suffix, bytes.NewBuffer([]byte{}))
+		pc.PutObject(context.TODO(), prefix+suffix, bytes.NewBuffer([]byte{}))
 	}
-	objectNames, err = pc.GetObjectsList(prefix)
+	objectNames, err = pc.GetObjectsList(context.TODO(), prefix)
 	if err != nil {
 		t.Fatalf("GetObjectsList(%q) returned error: %v", prefix, err)
 	}
@@ -720,7 +721,7 @@ func verifyGetObject1(t *testing.T) {
 
 	objectName := "test/getObject/test1/name"
 
-	_, _, err := pc.GetObject(objectName)
+	_, _, err := pc.GetObject(context.TODO(), objectName)
 
 	if err == ErrNotFound {
 		// OK - as expected
@@ -741,14 +742,14 @@ func verifyGetObject2(t *testing.T) {
 	sentData2 := []byte("<data>" + objectName2 + "</data>")
 
 	objectTS1 := time.Now()
-	pc.PutObject(objectName, bytes.NewBuffer(sentData))
+	pc.PutObject(context.TODO(), objectName, bytes.NewBuffer(sentData))
 	objectTS2 := time.Now()
 
 	namespaceTS1 := time.Now()
-	pc.PutObject(objectName2, bytes.NewBuffer(sentData2))
+	pc.PutObject(context.TODO(), objectName2, bytes.NewBuffer(sentData2))
 	namespaceTS2 := time.Now()
 
-	r, oi, err := pc.GetObject(objectName)
+	r, oi, err := pc.GetObject(context.TODO(), objectName)
 	defer r.Close()
 
 	if err != nil {
@@ -800,14 +801,14 @@ func verifyGetObject2(t *testing.T) {
 		)
 	}
 
-	pc.DeleteObject(objectName)
+	pc.DeleteObject(context.TODO(), objectName)
 }
 
 // verifyDeleteObject1 - test deletion of non-existent object
 func verifyDeleteObject1(t *testing.T) {
 	pc := NewClient(testAgentURL, testConfigNamespace)
 	objectName := "test/deleteObject/test1/name"
-	err := pc.DeleteObject(objectName)
+	err := pc.DeleteObject(context.TODO(), objectName)
 	if err != ErrNotFound {
 		if err != nil {
 			t.Fatalf("DeleteObject(%q) returned unexpected error: %s", objectName, err)
@@ -823,17 +824,17 @@ func verifyDeleteObject2(t *testing.T) {
 	objectName := "test/deleteObject/test2/name"
 	sentData := []byte("<data>" + objectName + "</data>")
 
-	err := pc.PutObject(objectName, bytes.NewBuffer(sentData))
+	err := pc.PutObject(context.TODO(), objectName, bytes.NewBuffer(sentData))
 	if err != nil {
 		t.Fatalf("PutObject(%q) failed with error: %s", objectName, err)
 	}
 
-	err = pc.DeleteObject(objectName)
+	err = pc.DeleteObject(context.TODO(), objectName)
 	if err != nil {
 		t.Fatalf("DeleteObject(%q) returned unexpected error: %s", objectName, err)
 	}
 
-	_, _, err = pc.GetObject(objectName)
+	_, _, err = pc.GetObject(context.TODO(), objectName)
 	if err != ErrNotFound {
 		if err != nil {
 			t.Fatalf("GetObject(%q) returned unexpected error for deleted object: %s", objectName, err)
@@ -842,7 +843,7 @@ func verifyDeleteObject2(t *testing.T) {
 		}
 	}
 
-	_, err = pc.GetObjectInfo(objectName)
+	_, err = pc.GetObjectInfo(context.TODO(), objectName)
 	if err != ErrNotFound {
 		if err != nil {
 			t.Fatalf("GetObjectInfo(%q) returned unexpected error for deleted object: %s", objectName, err)
@@ -851,7 +852,7 @@ func verifyDeleteObject2(t *testing.T) {
 		}
 	}
 
-	err = pc.DeleteObject(objectName)
+	err = pc.DeleteObject(context.TODO(), objectName)
 	if err != ErrNotFound {
 		if err != nil {
 			t.Fatalf("DeleteObject(%q) returned unexpected error: %s", objectName, err)
@@ -866,12 +867,12 @@ func verifyPutObject(t *testing.T) {
 	pc := NewClient(testAgentURL, testConfigNamespace)
 	objectName := "test/pubObject/test1/name"
 	sentData := []byte("<data>" + objectName + "</data>")
-	err := pc.PutObject(objectName, bytes.NewBuffer(sentData))
+	err := pc.PutObject(context.TODO(), objectName, bytes.NewBuffer(sentData))
 	if err != nil {
 		t.Fatalf("PutObject(%q) failed: %s", objectName, err)
 	}
 
-	pc.DeleteObject(objectName)
+	pc.DeleteObject(context.TODO(), objectName)
 }
 
 // verifyPutExistingObject - test PutObject
@@ -880,25 +881,25 @@ func verifyPutExistingObject(t *testing.T) {
 	objectName := "test/pubObject/test2/name"
 	sentData := []byte("<data>" + objectName + "</data>")
 
-	err := pc.PutObject(objectName, bytes.NewBuffer(sentData))
+	err := pc.PutObject(context.TODO(), objectName, bytes.NewBuffer(sentData))
 	if err != nil {
 		t.Fatalf("PutObject(%q) failed: %s", objectName, err)
 	}
 
 	sentData = []byte("<data2>" + objectName + "</data2>")
-	err = pc.PutObject(objectName, bytes.NewBuffer(sentData))
+	err = pc.PutObject(context.TODO(), objectName, bytes.NewBuffer(sentData))
 	if err != nil {
 		t.Fatalf("PutObject(%q) for existing object failed: %s", objectName, err)
 	}
 
-	pc.DeleteObject(objectName)
+	pc.DeleteObject(context.TODO(), objectName)
 }
 
 // verifyGetObjectInfo1 - test GetObjectInfo() for a non-existent object
 func verifyGetObjectInfo1(t *testing.T) {
 	pc := NewClient(testAgentURL, testConfigNamespace)
 	objectName := "test/getObjectInfo/test1/name"
-	_, err := pc.GetObjectInfo(objectName)
+	_, err := pc.GetObjectInfo(context.TODO(), objectName)
 	if err != ErrNotFound {
 		if err == nil {
 			t.Fatalf("GetObjectInfo(%q) unexpectedly succeeded. Expected %s", objectName, ErrNotFound)
@@ -916,10 +917,10 @@ func verifyGetObjectInfo2(t *testing.T) {
 	sentData := []byte("<data>" + objectName + "</data>")
 
 	ts1 := time.Now()
-	pc.PutObject(objectName, bytes.NewBuffer(sentData))
+	pc.PutObject(context.TODO(), objectName, bytes.NewBuffer(sentData))
 	ts2 := time.Now()
 
-	oi, err := pc.GetObjectInfo(objectName)
+	oi, err := pc.GetObjectInfo(context.TODO(), objectName)
 	if err != nil {
 		t.Fatalf("GetObjectInfo(%q) failed with error: %s", objectName, err)
 	}
@@ -957,7 +958,7 @@ func verifyGetObjectInfo2(t *testing.T) {
 		)
 	}
 
-	pc.DeleteObject(objectName)
+	pc.DeleteObject(context.TODO(), objectName)
 }
 
 // verifyGetRecentConfigRevision - test GetRecentConfigRevision() and GetConfigRevision()
@@ -973,7 +974,7 @@ func verifyGetRecentConfigRevision(t *testing.T) {
 	}
 	objectName := "test/getRecentConfigRevision/test1/name"
 	sentData := []byte("<data>" + objectName + "</data>")
-	pc.PutObject(objectName, bytes.NewBuffer(sentData))
+	pc.PutObject(context.TODO(), objectName, bytes.NewBuffer(sentData))
 
 	rev, err := pc.GetRecentConfigRevision()
 	if err != nil {
@@ -982,7 +983,7 @@ func verifyGetRecentConfigRevision(t *testing.T) {
 
 	objectName2 := "test/getRecentConfigRevision/test2/name"
 	sentData2 := []byte("<data>" + objectName2 + "</data>")
-	pc.PutObject(objectName2, bytes.NewBuffer(sentData2))
+	pc.PutObject(context.TODO(), objectName2, bytes.NewBuffer(sentData2))
 
 	newRev, err := pc.GetRecentConfigRevision()
 	if err != nil {
@@ -993,7 +994,7 @@ func verifyGetRecentConfigRevision(t *testing.T) {
 	}
 	rev = newRev
 
-	pc.DeleteObject(objectName)
+	pc.DeleteObject(context.TODO(), objectName)
 
 	newRev, err = pc.GetRecentConfigRevision()
 	if err != nil {
@@ -1009,7 +1010,7 @@ func verifyGetRecentConfigRevision(t *testing.T) {
 	// client. The old client should not be aware of the new revision until
 	// it is forced to fetch it by a call to GetConfigRevision().
 	pc2 := NewClient(testAgentURL, testConfigNamespace)
-	ni, _ := pc2.UpdateConfigRevision()
+	ni, _ := pc2.UpdateConfigRevision(context.TODO())
 
 	newRev, err = pc.GetRecentConfigRevision()
 	if err != nil {
@@ -1021,7 +1022,7 @@ func verifyGetRecentConfigRevision(t *testing.T) {
 	}
 
 	// Force the client to fetch the new revision:
-	newRev, err = pc.GetConfigRevision()
+	newRev, err = pc.GetConfigRevision(context.TODO())
 	if err != nil {
 		t.Fatalf("GetRecentConfigRevision() returned unexpected error: %s", err)
 	}
@@ -1048,18 +1049,18 @@ func verifyGetRecentConfigRevision(t *testing.T) {
 		)
 	}
 
-	pc.DeleteObject(objectName2)
+	pc.DeleteObject(context.TODO(), objectName2)
 }
 
 func verifyUpdateConfigRevision(t *testing.T) {
 	pc := NewClient(testAgentURL, testConfigNamespace)
 
-	oldRevision, err := pc.GetConfigRevision()
+	oldRevision, err := pc.GetConfigRevision(context.TODO())
 	if err != nil {
 		t.Fatalf("Getting config revision failed with error: %s", err)
 	}
 	ts1 := time.Now()
-	ni, err := pc.UpdateConfigRevision()
+	ni, err := pc.UpdateConfigRevision(context.TODO())
 	ts2 := time.Now()
 	if err != nil {
 		t.Fatalf("UpdateConfigRevision() returned error: %s", err)
@@ -1075,7 +1076,7 @@ func verifyUpdateConfigRevision(t *testing.T) {
 		t.Fatalf("UpdateConfigRevision() timestamp out of expected range of [%v - %v]: %v", ts1, ts2, timestamp)
 	}
 
-	newRevision, err := pc.GetConfigRevision()
+	newRevision, err := pc.GetConfigRevision(context.TODO())
 	if err != nil {
 		t.Fatalf("Getting config revision failed with error: %s", err)
 	}
@@ -1088,9 +1089,9 @@ func verifyUpdateConfigRevision(t *testing.T) {
 func verifyClearCache(t *testing.T) {
 	pc := NewClient(testAgentURL, testConfigNamespace)
 
-	ni1, _ := pc.UpdateConfigRevision()
+	ni1, _ := pc.UpdateConfigRevision(context.TODO())
 
-	ni2, err := pc.ClearCache()
+	ni2, err := pc.ClearCache(context.TODO())
 	if err != nil {
 		t.Fatalf("ClearCache() failed with error: %s", err)
 	}
@@ -1138,11 +1139,7 @@ func TestNetworkedFunctionality(t *testing.T) {
 }
 
 func performURLTest(t *testing.T, pc *Client, expected string, parts ...string) {
-	u, err := pc.getConfigAgentURL("foo", "bar", "baz")
-	if err != nil {
-		t.Fatalf("getPanasasConfigStoreURL() returned error: %s", err)
-	}
-
+	u := pc.getConfigAgentURL("foo", "bar", "baz")
 	result := fmt.Sprint(u)
 	if result != expected {
 		t.Fatalf("URL formatting error. Expected %q, got %q", expected, result)

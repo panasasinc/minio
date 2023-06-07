@@ -2,15 +2,16 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"path"
 	"strings"
+	"time"
 )
 
 const panasasHTTPS3MetadataHeader string = "Panasas-Config-Object-Metadata"
@@ -33,6 +34,9 @@ type ErrUnexpectedHTTPStatus uint
 
 // ErrUnexpectedContentType informs about unexpected HTTP response content type
 type ErrUnexpectedContentType string
+
+// ConfigAgentOperationTimeout is a timeout for HTTP requests to the Config Agent
+const ConfigAgentOperationTimeout = 30 * time.Second
 
 func (e ErrUnexpectedHTTPStatus) Error() string {
 	return fmt.Sprintf("Unexpected HTTP status: %v", uint(e))
@@ -64,7 +68,7 @@ func NewClient(agentURL, namespace string) *Client {
 	return &client
 }
 
-func (c *Client) getConfigAgentURL(elem ...string) (*url.URL, error) {
+func (c *Client) getConfigAgentURL(elem ...string) string {
 	elems := make([]string, 0, 2+len(elem))
 	elems = append(elems, "namespaces", c.namespace)
 	elems = append(elems, elem...)
@@ -81,27 +85,21 @@ func (c *Client) getConfigAgentURL(elem ...string) (*url.URL, error) {
 		separator = ""
 	}
 
-	return url.Parse(strings.Join([]string{c.agentURL, urlPath[offset:]}, separator))
+	return strings.Join([]string{c.agentURL, urlPath[offset:]}, separator)
 }
 
-func (c *Client) makeConfigAgentRequest(urlElem ...string) (*http.Request, error) {
-	u, err := c.getConfigAgentURL(urlElem...)
+func (c *Client) newConfigAgentRequest(ctx context.Context, urlElem ...string) (*http.Request, context.CancelFunc, error) {
+	u := c.getConfigAgentURL(urlElem...)
+
+	ctx, cancel := context.WithTimeout(ctx, ConfigAgentOperationTimeout)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		log.Printf("Failed formatting URL for %v: %s\n", urlElem, err)
-		return nil, err
+		cancel()
+		return nil, nil, err
 	}
 
-	req := http.Request{
-		Method:        http.MethodGet,
-		URL:           u,
-		Proto:         "HTTP/1.1",
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		Header:        make(http.Header),
-		Host:          u.Host,
-		ContentLength: 0,
-	}
-	return &req, nil
+	return req, cancel, err
 }
 
 // closeResponseBody close non nil response with any response Body.
@@ -127,12 +125,13 @@ func closeResponseBody(resp *http.Response) {
 
 // GetObjectsList returns a list of objects with names beginning with the
 // specified prefix.
-func (c *Client) GetObjectsList(prefix string) ([]string, error) {
-	req, err := c.makeConfigAgentRequest("configs")
+func (c *Client) GetObjectsList(ctx context.Context, prefix string) ([]string, error) {
+	req, cancel, err := c.newConfigAgentRequest(ctx, "configs")
 	if err != nil {
 		log.Printf("Failed preparing HTTP request object for /objects with prefix %q: %s\n", prefix, err)
 		return []string{}, err
 	}
+	defer cancel()
 
 	q := req.URL.Query()
 	q.Add("prefix", prefix)
@@ -170,14 +169,15 @@ func (c *Client) GetObjectsList(prefix string) ([]string, error) {
 // The caller is responsible for calling Close() on the dataReader.
 // If err is not nil, dataReader and metadata are assumed invalid and should
 // not be used.
-func (c *Client) GetObject(objectName string) (dataReader io.ReadCloser, oi *ObjectInfo, err error) {
+func (c *Client) GetObject(ctx context.Context, objectName string) (dataReader io.ReadCloser, oi *ObjectInfo, err error) {
 	base := "configs"
 
-	req, err := c.makeConfigAgentRequest(base, objectName)
+	req, cancel, err := c.newConfigAgentRequest(ctx, base, objectName)
 	if err != nil {
 		log.Printf("Failed preparing HTTP request object for %v with name %q: %s\n", base, objectName, err)
 		return nil, nil, err
 	}
+	defer cancel()
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -224,14 +224,15 @@ func (c *Client) GetObject(objectName string) (dataReader io.ReadCloser, oi *Obj
 	return resp.Body, oi, nil
 }
 
-func (c *Client) deleteObjects(objectName string, byPrefix bool, lockID ...string) error {
+func (c *Client) deleteObjects(ctx context.Context, objectName string, byPrefix bool, lockID ...string) error {
 	base := "configs"
 
-	req, err := c.makeConfigAgentRequest(base, objectName)
+	req, cancel, err := c.newConfigAgentRequest(ctx, base, objectName)
 	if err != nil {
 		log.Printf("Failed preparing HTTP request object for %v with name %q: %s\n", base, objectName, err)
 		return err
 	}
+	defer cancel()
 
 	req.Method = http.MethodDelete
 
@@ -274,25 +275,26 @@ func (c *Client) deleteObjects(objectName string, byPrefix bool, lockID ...strin
 }
 
 // DeleteObject deletes an object with matching name
-func (c *Client) DeleteObject(objectName string, lockID ...string) error {
-	return c.deleteObjects(objectName, false, lockID...)
+func (c *Client) DeleteObject(ctx context.Context, objectName string, lockID ...string) error {
+	return c.deleteObjects(ctx, objectName, false, lockID...)
 }
 
 // DeleteObjectsByPrefix deletes all objects with names starting with the
 // specified prefix.
-func (c *Client) DeleteObjectsByPrefix(prefix string) error {
-	return c.deleteObjects(prefix, true)
+func (c *Client) DeleteObjectsByPrefix(ctx context.Context, prefix string) error {
+	return c.deleteObjects(ctx, prefix, true)
 }
 
 // PutObject stores an object of a given name in the config agent
-func (c *Client) PutObject(objectName string, data io.Reader, lockID ...string) error {
+func (c *Client) PutObject(ctx context.Context, objectName string, data io.Reader, lockID ...string) error {
 	base := "configs"
 
-	req, err := c.makeConfigAgentRequest(base, objectName)
+	req, cancel, err := c.newConfigAgentRequest(ctx, base, objectName)
 	if err != nil {
 		log.Printf("Failed preparing HTTP request object for %v with name %q: %s\n", base, objectName, err)
 		return err
 	}
+	defer cancel()
 
 	if data == nil {
 		data = bytes.NewBuffer([]byte{})
@@ -333,14 +335,15 @@ func (c *Client) PutObject(objectName string, data io.Reader, lockID ...string) 
 }
 
 // GetObjectInfo fetches object metadata from the config agent
-func (c *Client) GetObjectInfo(objectName string) (oi *ObjectInfo, err error) {
+func (c *Client) GetObjectInfo(ctx context.Context, objectName string) (oi *ObjectInfo, err error) {
 	base := "configs"
 
-	req, err := c.makeConfigAgentRequest(base, objectName)
+	req, cancel, err := c.newConfigAgentRequest(ctx, base, objectName)
 	if err != nil {
 		log.Printf("Failed preparing HTTP request object for %v with name %q: %s\n", base, objectName, err)
 		return nil, err
 	}
+	defer cancel()
 
 	req.Method = http.MethodHead
 	resp, err := c.httpClient.Do(req)
@@ -380,8 +383,8 @@ func (c *Client) GetRecentConfigRevision() (revision string, err error) {
 	return *c.configRevision, nil
 }
 
-func (c *Client) fetchNamespaceInfo(endpoint, httpMethod string) (*NamespaceInfo, error) {
-	req, err := c.makeConfigAgentRequest(endpoint)
+func (c *Client) fetchNamespaceInfo(ctx context.Context, endpoint, httpMethod string) (*NamespaceInfo, error) {
+	req, cancel, err := c.newConfigAgentRequest(ctx, endpoint)
 	if err != nil {
 		if endpoint != "" {
 			log.Printf("Failed preparing HTTP request object for /namespaces/%s/%s: %s\n", c.namespace, endpoint, err)
@@ -391,6 +394,7 @@ func (c *Client) fetchNamespaceInfo(endpoint, httpMethod string) (*NamespaceInfo
 		return nil, err
 	}
 	req.Method = httpMethod
+	defer cancel()
 
 	resp, err := c.httpClient.Do(req)
 	defer closeResponseBody(resp)
@@ -410,11 +414,11 @@ func (c *Client) fetchNamespaceInfo(endpoint, httpMethod string) (*NamespaceInfo
 }
 
 // GetConfigRevision queries the config agent for the current config revision
-func (c *Client) GetConfigRevision() (revision string, err error) {
+func (c *Client) GetConfigRevision(ctx context.Context) (revision string, err error) {
 	endpoint := ""
 	method := http.MethodGet
 
-	info, err := c.fetchNamespaceInfo(endpoint, method)
+	info, err := c.fetchNamespaceInfo(ctx, endpoint, method)
 	if err != nil {
 		return "", err
 	}
@@ -426,33 +430,34 @@ func (c *Client) GetConfigRevision() (revision string, err error) {
 
 // UpdateConfigRevision forces Panasas config agent to generate a new revision
 // string
-func (c *Client) UpdateConfigRevision() (info *NamespaceInfo, err error) {
+func (c *Client) UpdateConfigRevision(ctx context.Context) (info *NamespaceInfo, err error) {
 	endpoint := "actions/Revision.Update"
 	method := http.MethodPost
 
-	return c.fetchNamespaceInfo(endpoint, method)
+	return c.fetchNamespaceInfo(ctx, endpoint, method)
 }
 
 // ClearCache triggers Panasas config agent cache purging
-func (c *Client) ClearCache() (info *NamespaceInfo, err error) {
+func (c *Client) ClearCache(ctx context.Context) (info *NamespaceInfo, err error) {
 	endpoint := "actions/Cache.Clear"
 	method := http.MethodPost
 
-	return c.fetchNamespaceInfo(endpoint, method)
+	return c.fetchNamespaceInfo(ctx, endpoint, method)
 }
 
 // GetObjectLock tries to get a write or read lock on the specified object
 // Set "read" to true to obtain a non-exclusive read lock.
 // Returns the ID of the obtained lock. This ID can be then used in the calls
 // to ReleaseObjectLock(), PutObject(), DeleteObject().
-func (c *Client) GetObjectLock(objectName string, read bool) (lockID string, err error) {
+func (c *Client) GetObjectLock(ctx context.Context, objectName string, read bool) (lockID string, err error) {
 	base := "/lock"
 
-	req, err := c.makeConfigAgentRequest(base, objectName)
+	req, cancel, err := c.newConfigAgentRequest(ctx, base, objectName)
 	if err != nil {
 		log.Printf("Failed preparing HTTP request object for %v with name %q: %s\n", base, objectName, err)
 		return "", err
 	}
+	defer cancel()
 
 	req.Method = http.MethodPost
 
@@ -497,13 +502,14 @@ func (c *Client) GetObjectLock(objectName string, read bool) (lockID string, err
 // ReleaseObjectLock releases a previously obtained object lock
 // Will return ErrNotFound if the specified lock has not been found or the lock
 // has expired since it was obtained.
-func (c *Client) ReleaseObjectLock(lockID string) (err error) {
+func (c *Client) ReleaseObjectLock(ctx context.Context, lockID string) (err error) {
 	base := "/locks"
-	req, err := c.makeConfigAgentRequest(base, lockID)
+	req, cancel, err := c.newConfigAgentRequest(ctx, base, lockID)
 	if err != nil {
 		log.Printf("Failed preparing HTTP request object for %v with name %q: %s\n", base, lockID, err)
 		return err
 	}
+	defer cancel()
 
 	req.Method = http.MethodDelete
 
