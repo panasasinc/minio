@@ -1527,7 +1527,6 @@ func (fs *PANFSObjects) DeleteObject(ctx context.Context, bucket, object string,
 }
 
 func (fs *PANFSObjects) isLeafDir(bucket string, leafPath string) bool {
-	// TODO: check this...
 	return fs.isObjectDir(bucket, leafPath)
 }
 
