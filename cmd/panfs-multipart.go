@@ -205,19 +205,20 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	}
 
 	// Write info about appended parts
-	fsMetaBytes, err := json.Marshal(fsParts)
+	panfsPartsBytes, err := json.Marshal(fsParts)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return
 	}
 
-	fsMetaTmpPath := pathJoin(bucketPath, panfsS3TmpDir, mustGetUUID())
-	defer fsRemoveFile(ctx, fsMetaTmpPath)
-	if err = os.WriteFile(fsMetaTmpPath, fsMetaBytes, 0o666); err != nil {
+	// Update info about uploaded parts
+	panfsPartsTmpPath := pathJoin(bucketPath, panfsS3TmpDir, mustGetUUID())
+	defer fsRemoveFile(ctx, panfsPartsTmpPath)
+	if err = os.WriteFile(panfsPartsTmpPath, panfsPartsBytes, 0o666); err != nil {
 		logger.LogIf(ctx, err)
 		return
 	}
-	if err = PanRenameFile(fsMetaTmpPath, fs.getUploadIDFilePartsPath(bucketPath, object, uploadID)); err != nil {
+	if err = PanRenameFile(panfsPartsTmpPath, fs.getUploadIDFilePartsPath(bucketPath, object, uploadID)); err != nil {
 		logger.LogIf(ctx, err)
 		return
 	}
