@@ -56,7 +56,6 @@ import (
 )
 
 const (
-	panfsBucketListPrefix     = "buckets"
 	panfsConfigAgentNamespace = "s3"
 )
 
