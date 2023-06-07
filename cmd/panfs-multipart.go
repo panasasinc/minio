@@ -246,7 +246,9 @@ func (fs *PANFSObjects) ListMultipartUploads(ctx context.Context, bucket, object
 	result.NextKeyMarker = object
 	result.UploadIDMarker = uploadIDMarker
 
-	uploadIDs, err := readDir(fs.getMultipartSHADir(bucketPath, object))
+	objectSHADir := fs.getMultipartSHADir(bucketPath, object)
+
+	uploadIDs, err := readDir(objectSHADir)
 	if err != nil {
 		if err == errFileNotFound {
 			result.IsTruncated = false
@@ -260,7 +262,12 @@ func (fs *PANFSObjects) ListMultipartUploads(ctx context.Context, bucket, object
 	// is the creation time of the uploadID, hence we will use that.
 	var uploads []MultipartInfo
 	for _, uploadID := range uploadIDs {
-		metaFilePath := pathJoin(fs.getMultipartSHADir(bucketPath, object), uploadID, fs.metaJSONFile)
+		// Ignore entries with .lock suffix.
+		// TODO: move lock outside of root multipart folder
+		if strings.HasSuffix(uploadID, ".lock") {
+			continue
+		}
+		metaFilePath := pathJoin(objectSHADir, uploadID, fs.metaJSONFile)
 		fi, err := fsStatFile(ctx, metaFilePath)
 		if err != nil {
 			return result, toObjectErr(err, bucket, object)
