@@ -214,7 +214,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	// Update info about uploaded parts
 	panfsPartsTmpPath := pathJoin(bucketPath, panfsS3TmpDir, mustGetUUID())
 	defer fsRemoveFile(ctx, panfsPartsTmpPath)
-	if err = os.WriteFile(panfsPartsTmpPath, panfsPartsBytes, 0o666); err != nil {
+	if err = os.WriteFile(panfsPartsTmpPath, panfsPartsBytes, 0o660); err != nil {
 		logger.LogIf(ctx, err)
 		return
 	}
