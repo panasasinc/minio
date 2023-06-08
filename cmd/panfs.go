@@ -184,11 +184,11 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 		return nil, fmt.Errorf("can't parse count of tmp directories. Error: %w", err)
 	}
 
-	defaultDirMode, err := strconv.ParseUint(env.Get(config.EnvPanDefaultDirMode, strconv.Itoa(0o777)), 10, 32)
+	defaultDirMode, err := strconv.ParseUint(env.Get(config.EnvPanDefaultDirMode, "770"), 8, 32)
 	if err != nil {
 		return nil, fmt.Errorf("can't parse default dir mode Error: %w", err)
 	}
-	defaultObjMode, err := strconv.ParseUint(env.Get(config.EnvPanDefaultObjMode, strconv.Itoa(0o777)), 10, 32)
+	defaultObjMode, err := strconv.ParseUint(env.Get(config.EnvPanDefaultObjMode, "770"), 8, 32)
 	if err != nil {
 		return nil, fmt.Errorf("can't parse default obj mode Error: %w", err)
 	}
