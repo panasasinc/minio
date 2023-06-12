@@ -213,7 +213,11 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 
 	// Update info about uploaded parts
 	panfsPartsTmpPath := pathJoin(bucketPath, panfsS3TmpDir, mustGetUUID())
-	defer fsRemoveFile(ctx, panfsPartsTmpPath)
+	defer func(err error) {
+		if err != nil {
+			fsRemoveFile(ctx, panfsPartsTmpPath)
+		}
+	}(err)
 	if err = os.WriteFile(panfsPartsTmpPath, panfsPartsBytes, 0o660); err != nil {
 		logger.LogIf(ctx, err)
 		return
@@ -262,9 +266,7 @@ func (fs *PANFSObjects) ListMultipartUploads(ctx context.Context, bucket, object
 	// is the creation time of the uploadID, hence we will use that.
 	var uploads []MultipartInfo
 	for _, uploadID := range uploadIDs {
-		// Ignore entries with .lock suffix.
-		// TODO: move lock outside of root multipart folder
-		if strings.HasSuffix(uploadID, ".lock") {
+		if !strings.HasSuffix(uploadID, "/") {
 			continue
 		}
 		metaFilePath := pathJoin(objectSHADir, uploadID, fs.metaJSONFile)
@@ -993,22 +995,30 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 	if file == nil {
 		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
 	} else {
-		fsRemoveFile(ctx, file.filePath)
+		delete(fs.appendFileMap, uploadID)
 	}
-	delete(fs.appendFileMap, uploadID)
 	fs.appendFileMapMu.Unlock()
 
 	file.flock.Lock()
 	defer func() {
 		file.flock.Unlock()
+		// remove lock file
 		fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
 	}()
+	fsRemoveFile(ctx, file.filePath)
 
 	// Purge multipart folders
-	fsTmpObjPath := pathJoin(bucketPath, panfsS3TmpDir, fs.nodeDataSerial, mustGetUUID())
-	defer fsRemoveAll(ctx, fsTmpObjPath) // remove multipart temporary files in background.
+	tempDir := pathJoin(fs.getTempDir(bucketPath), mustGetUUID())
+	if err = MkdirAll(tempDir, 0755); err != nil {
+		return toObjectErr(err, bucket, object)
+	}
+	fsTmpObjPath := pathJoin(tempDir, mustGetUUID())
+	defer fsRemoveAll(ctx, fsTmpObjPath)
 
-	Rename(uploadIDDir, fsTmpObjPath)
+	err = Rename(uploadIDDir, fsTmpObjPath)
+	if err != nil {
+		return toObjectErr(err, bucket, object)
+	}
 
 	// It is safe to ignore any directory not empty error (in case there were multiple uploadIDs on the same object)
 	fsRemoveDir(ctx, fs.getMultipartSHADir(bucketPath, object))
