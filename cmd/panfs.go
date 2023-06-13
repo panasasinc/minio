@@ -29,6 +29,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -70,6 +71,8 @@ const (
 	panfsS3TmpDir       = panfsMetaDir + SlashSeparator + tmpDir
 	panfsS3MetadataDir  = panfsMetaDir + SlashSeparator + objMetadataDir
 )
+
+var BucketMetadataBinRegexp = regexp.MustCompile(`buckets/[^/]+/.metadata.bin`)
 
 // PANFSObjects - Implements panfs object layer.
 type PANFSObjects struct {
@@ -1912,14 +1915,16 @@ func (fs *PANFSObjects) isConfigAgentObject(bucket, object string) bool {
 	}
 
 	switch {
-	case strings.HasPrefix(object, "buckets/"):
-		// NOTE:llorens: moving bucket metadata to the config agent
-		return true
 	case strings.HasPrefix(object, "multipart/"):
 		return false
 	case strings.HasPrefix(object, "tmp/"):
 		return false
 	case object == formatConfigFile:
+		return false
+	// Moving only the bucket metadata to the config agent
+	case BucketMetadataBinRegexp.MatchString(object):
+		return true
+	case strings.HasPrefix(object, "buckets/"):
 		return false
 	}
 
