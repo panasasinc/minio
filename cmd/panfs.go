@@ -39,6 +39,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/set"
 	"github.com/minio/minio-go/v7/pkg/tags"
 	"github.com/minio/minio/internal/color"
 	"github.com/minio/minio/internal/config"
@@ -686,15 +687,20 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		// objects included in the "buckets" directory but ignore a
 		// directory/object whose name would begin with "buckets".
 		prefix := pathJoin(minioMetaBucket, bucketMetaPrefix, SlashSeparator)
-		entries, err = fs.configAgent.GetObjectPrefixes(prefix, SlashSeparator)
-
+		entries, err = fs.configAgent.GetObjectsList(prefix)
 		if err == nil {
-			// The entries will begin with the prefix. In order to
-			// get the names of the buckets, we need to remove it
-			// from each entry.
-			for idx, entry := range entries {
-				entries[idx] = strings.TrimPrefix(entry, prefix)
+			bucketSet := set.NewStringSet()
+			// The entries will have a prefix. In order to get the
+			// names of the buffers, we need to remove the prefixes.
+			for _, entry := range entries {
+				entry = strings.TrimPrefix(entry, prefix)
+				slashIdx := strings.Index(entry, SlashSeparator)
+				if slashIdx >= 0 {
+					entry = entry[:slashIdx]
+				}
+				bucketSet.Add(entry)
 			}
+			entries = bucketSet.ToSlice()
 		}
 	} else {
 		// Read bucket list from folder where theirs metadata are stored
@@ -772,10 +778,8 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 
 	globalBucketMetadataCache.Delete(bucket)
 	if fs.configAgent != nil {
-		prefix := pathJoin(minioMetaBucket, bucketMetaPrefix, bucket, SlashSeparator)
-		if err = fs.configAgent.DeleteObjectsByPrefix(prefix); err != nil {
-			return toObjectErr(err, bucket)
-		}
+		// NOTE:llorens: do nothing, deleteBucketMetadata() will do
+		// everything that's needed.
 	} else {
 		if err = fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket)); err != nil {
 			return toObjectErr(err, bucket)
