@@ -709,13 +709,19 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	}
 	defer NSUpdated(bucket, object)
 	uploadIDDir := fs.getUploadIDDir(bucketPath, object, uploadID)
+
+	handleStatMetaFileError := func(e error) error {
+		// caller is responsible to check that e is not nil
+		if err == errFileNotFound || err == errFileAccessDenied {
+			return InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
+		}
+		return toObjectErr(err, bucket, object)
+	}
+
 	// Just check if the uploadID exists to avoid copy if it doesn't.
 	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
 	if err != nil {
-		if err == errFileNotFound || err == errFileAccessDenied {
-			return oi, InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
-		}
-		return oi, toObjectErr(err, bucket, object)
+		return oi, handleStatMetaFileError(e)
 	}
 
 	// Most of the times appendFile would already be fully appended by now. We call fs.backgroundAppend()
@@ -746,6 +752,12 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		}
 		file.flock.Unlock()
 	}()
+
+	// ensure that uploadId dir is still here
+	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
+	if err != nil {
+		return oi, handleStatMetaFileError(e)
+	}
 
 	// ensure that part ETag is canonicalized to strip off extraneous quotes
 	for i := range parts {
@@ -987,13 +999,18 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 		return toObjectErr(err, bucket)
 	}
 
-	uploadIDDir := fs.getUploadIDDir(bucketPath, object, uploadID)
-	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
-	if err != nil {
+	handleStatMetaFileError := func(e error) error {
+		// caller is responsible to check that e is not nil
 		if err == errFileNotFound || err == errFileAccessDenied {
 			return InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
 		}
 		return toObjectErr(err, bucket, object)
+	}
+
+	uploadIDDir := fs.getUploadIDDir(bucketPath, object, uploadID)
+	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
+	if err != nil {
+		return handleStatMetaFileError(err)
 	}
 
 	fs.appendFileMapMu.Lock()
@@ -1019,6 +1036,12 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 		}
 		file.flock.Unlock()
 	}()
+
+	// ensure that uploadId dir is still here
+	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
+	if err != nil {
+		return handleStatMetaFileError(err)
+	}
 	fsRemoveFile(ctx, file.filePath)
 
 	// Purge multipart folders
