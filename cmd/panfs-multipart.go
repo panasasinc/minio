@@ -704,7 +704,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		return oi, toObjectErr(err)
 	}
 
-	if _, err := fsStatVolume(ctx, bucketPath); err != nil {
+	if _, err = fsStatVolume(ctx, bucketPath); err != nil {
 		return oi, toObjectErr(err, bucket)
 	}
 	defer NSUpdated(bucket, object)
@@ -734,7 +734,9 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	fs.appendFileMapMu.Unlock()
 
 	// Take a lock before reading parts and do complete upload stuff
-	file.flock.Lock()
+	if err = file.flock.Lock(); err != nil {
+		return oi, InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
+	}
 	defer func() {
 		if err == nil {
 			fs.appendFileMapMu.Lock()
@@ -1003,7 +1005,9 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 	}
 	fs.appendFileMapMu.Unlock()
 
-	file.flock.Lock()
+	if err = file.flock.Lock(); err != nil {
+		return InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
+	}
 	defer func() {
 		if err == nil {
 			// Delete append file from memory only if no error occurred during mkdir and rename on next steps
