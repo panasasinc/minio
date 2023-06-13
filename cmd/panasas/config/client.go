@@ -125,7 +125,9 @@ func closeResponseBody(resp *http.Response) {
 	}
 }
 
-func (c *Client) listConfigObjects(prefix, delimiter string) ([]string, error) {
+// GetObjectsList returns a list of objects with names beginning with the
+// specified prefix.
+func (c *Client) GetObjectsList(prefix string) ([]string, error) {
 	req, err := c.makeConfigAgentRequest("configs")
 	if err != nil {
 		log.Printf("Failed preparing HTTP request object for /objects with prefix %q: %s\n", prefix, err)
@@ -134,9 +136,6 @@ func (c *Client) listConfigObjects(prefix, delimiter string) ([]string, error) {
 
 	q := req.URL.Query()
 	q.Add("prefix", prefix)
-	if delimiter != "" {
-		q.Add("delimiter", delimiter)
-	}
 	req.URL.RawQuery = q.Encode()
 
 	resp, err := c.httpClient.Do(req)
@@ -163,40 +162,6 @@ func (c *Client) listConfigObjects(prefix, delimiter string) ([]string, error) {
 	}
 
 	return result, nil
-}
-
-// GetObjectsList returns a list of objects with names beginning with the
-// specified prefix.
-func (c *Client) GetObjectsList(prefix string) ([]string, error) {
-	return c.listConfigObjects(prefix, "")
-}
-
-// GetObjectPrefixes returns a list of shared object name prefixes.
-//
-// GetObjectPrefixes will group the objects with names matching the specified
-// prefix by trimming the parts beginning after the first occurrence of the
-// delimiter after the prefix.
-// E.g. let's assume 5 objects are stored with the following keys:
-// - "/home/user1/object1"
-// - "/home/user1/object2"
-// - "/home/user2/object1"
-// - "/home/user2/object2"
-// - "/etc/share_object"
-// In this case GetObjectPrefixes("/home/", "/") will return the following list
-// of common prefixes:
-// - "/home/user1",
-// - "/home/user2".
-//
-// This will be done by performing the following algorithm:
-// /home/                 - prefix
-// /home/user1/object1    - object name
-// ^^^^^^                 - matches the prefix
-//
-//            ^           - is the first delimiter AFTER the prefix
-//
-//            ^^^^^^^^    - delimiter with the following part is trimmed
-func (c *Client) GetObjectPrefixes(prefix, delimiter string) ([]string, error) {
-	return c.listConfigObjects(prefix, delimiter)
 }
 
 // GetObject returns an object:
