@@ -718,6 +718,31 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		return oi, toObjectErr(err, bucket, object)
 	}
 
+	// Most of the times appendFile would already be fully appended by now. We call fs.backgroundAppend()
+	// to take care of the following corner case:
+	// 1. The last PutObjectPart triggers go-routine fs.backgroundAppend, this go-routine has not started yet.
+	// 2. Now CompleteMultipartUpload gets called which sees that lastPart is not appended and starts appending
+	//    from the beginning
+	// there are no info about mpart upload in memory
+	fs.appendFileMapMu.Lock()
+	file := fs.appendFileMap[uploadID]
+	if file == nil {
+		// This may happen when complete upload is called from node where no parts were uploaded
+		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
+		fs.appendFileMap[uploadID] = file
+	}
+	fs.appendFileMapMu.Unlock()
+
+	// Take a lock before reading parts and do complete upload stuff
+	file.flock.Lock()
+	defer func() {
+		file.flock.Unlock()
+		if err != nil {
+			delete(fs.appendFileMap, uploadID)
+			fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
+		}
+	}()
+
 	// ensure that part ETag is canonicalized to strip off extraneous quotes
 	for i := range parts {
 		parts[i].ETag = canonicalizeETag(parts[i].ETag)
@@ -800,28 +825,6 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	appendFallback := true // In case background-append did not append the required parts.
 	appendFilePath := fs.getObjectBackgroundAppendPath(bucketPath, object, uploadID)
 
-	// Most of the times appendFile would already be fully appended by now. We call fs.backgroundAppend()
-	// to take care of the following corner case:
-	// 1. The last PutObjectPart triggers go-routine fs.backgroundAppend, this go-routine has not started yet.
-	// 2. Now CompleteMultipartUpload gets called which sees that lastPart is not appended and starts appending
-	//    from the beginning
-	// there are no info about mpart upload in memory
-	fs.appendFileMapMu.Lock()
-	file := fs.appendFileMap[uploadID]
-	if file == nil {
-		// This may happen when complete upload is called from node where no parts were uploaded
-		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
-	} else {
-		delete(fs.appendFileMap, uploadID)
-	}
-	fs.appendFileMapMu.Unlock()
-
-	// Take a lock before reading parts and do complete upload stuff
-	file.flock.Lock()
-	defer func() {
-		file.flock.Unlock()
-		fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
-	}()
 	fs.backgroundAppend(ctx, bucket, object, uploadID, false)
 
 	fsParts := fs.readMPartUploadParts(bucketPath, object, uploadID)
@@ -994,16 +997,18 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 	file := fs.appendFileMap[uploadID]
 	if file == nil {
 		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
-	} else {
-		delete(fs.appendFileMap, uploadID)
+		fs.appendFileMap[uploadID] = file
 	}
 	fs.appendFileMapMu.Unlock()
 
 	file.flock.Lock()
 	defer func() {
 		file.flock.Unlock()
-		// remove lock file
-		fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
+		if err != nil {
+			delete(fs.appendFileMap, uploadID)
+			// remove lock file
+			fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
+		}
 	}()
 	fsRemoveFile(ctx, file.filePath)
 
