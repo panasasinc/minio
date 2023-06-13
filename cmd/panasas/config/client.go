@@ -242,7 +242,7 @@ func (c *Client) deleteObjects(objectName string, byPrefix bool, lockID ...strin
 		hasQuery = true
 	}
 	if byPrefix {
-		q.Add("by_prefix", "1")
+		q.Add("by_prefix", "true")
 		hasQuery = true
 	}
 	if hasQuery {
