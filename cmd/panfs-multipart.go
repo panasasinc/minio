@@ -691,10 +691,11 @@ func (fs *PANFSObjects) ListObjectParts(ctx context.Context, bucket, object, upl
 // md5sums of all the parts.
 //
 // Implements S3 compatible Complete multipart API.
-func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket string, object string, uploadID string, parts []CompletePart, opts ObjectOptions) (oi ObjectInfo, e error) {
+func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket string, object string, uploadID string, parts []CompletePart, opts ObjectOptions) (oi ObjectInfo, err error) {
 	var actualSize int64
+	completed := false
 
-	if err := checkCompleteMultipartArgs(ctx, bucket, object, fs); err != nil {
+	if err = checkCompleteMultipartArgs(ctx, bucket, object, fs); err != nil {
 		return oi, toObjectErr(err)
 	}
 
@@ -721,7 +722,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	// Just check if the uploadID exists to avoid copy if it doesn't.
 	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
 	if err != nil {
-		return oi, handleStatMetaFileError(e)
+		return oi, handleStatMetaFileError(err)
 	}
 
 	// Most of the times appendFile would already be fully appended by now. We call fs.backgroundAppend()
@@ -744,7 +745,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		return oi, InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
 	}
 	defer func() {
-		if err == nil {
+		if completed {
 			file.flock.Unlock()
 			fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
 			fs.appendFileMapMu.Lock()
@@ -758,7 +759,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	// ensure that uploadId dir is still here
 	_, err = fsStatFile(ctx, pathJoin(uploadIDDir, fs.metaJSONFile))
 	if err != nil {
-		return oi, handleStatMetaFileError(e)
+		return oi, handleStatMetaFileError(err)
 	}
 
 	// ensure that part ETag is canonicalized to strip off extraneous quotes
@@ -915,7 +916,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		//
 		// We should preserve the `panfs.json` of any
 		// existing object
-		if e != nil && freshFile {
+		if err != nil && freshFile {
 			tmpDir := pathJoin(bucketPath, panfsS3TmpDir, fs.nodeDataSerial)
 			fsRemoveMeta(ctx, bucketMetaDir, fsMetaPath, tmpDir)
 		}
@@ -972,6 +973,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 		return oi, toObjectErr(err, bucket, object)
 	}
 
+	completed = true
 	return fsMeta.ToObjectInfo(bucket, object, fi), nil
 }
 
