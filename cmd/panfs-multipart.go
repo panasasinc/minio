@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/minio/minio/internal/filelock"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -32,6 +31,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/minio/minio/internal/filelock"
 	xioutil "github.com/minio/minio/internal/ioutil"
 	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/trie"
@@ -1046,7 +1046,7 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 
 	// Purge multipart folders
 	tempDir := pathJoin(fs.getTempDir(bucketPath), mustGetUUID())
-	if err = MkdirAll(tempDir, 0755); err != nil {
+	if err = MkdirAll(tempDir, 0o755); err != nil {
 		return toObjectErr(err, bucket, object)
 	}
 	fsTmpObjPath := pathJoin(tempDir, mustGetUUID())

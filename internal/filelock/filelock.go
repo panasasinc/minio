@@ -2,19 +2,24 @@ package filelock
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"syscall"
 )
 
-var ErrorNotLocked = errors.New("not locked")
-var ErrorLocked = errors.New("already locked")
-var ErrorDirNotExists = errors.New("directory of file not exists")
-var ErrorCannotCreateFind = errors.New("cannot create or find file")
+var (
+	ErrorNotLocked        = errors.New("not locked")
+	ErrorLocked           = errors.New("already locked")
+	ErrorDirNotExists     = errors.New("directory of file not exists")
+	ErrorCannotCreateFind = errors.New("cannot create or find file")
+)
 
-const blockFlags = syscall.LOCK_EX
-const noBlockFlags = syscall.LOCK_EX | syscall.LOCK_NB
+const (
+	blockFlags   = syscall.LOCK_EX
+	noBlockFlags = syscall.LOCK_EX | syscall.LOCK_NB
+)
 
 type FileLock struct {
 	path  string
@@ -34,10 +39,15 @@ func New(path string) (*FileLock, error) {
 	}, nil
 }
 
-func (l *FileLock) Lock() error {
+func (l *FileLock) Lock() (err error) {
 	l.mutex.Lock()
+	defer func() {
+		if err != nil {
+			l.mutex.Unlock()
+		}
+	}()
 
-	file, err := os.OpenFile(l.path, os.O_RDWR, 0660)
+	file, err := os.OpenFile(l.path, os.O_RDWR, 0o660)
 	if err != nil {
 		return ErrorCannotCreateFind
 	}
@@ -46,8 +56,7 @@ func (l *FileLock) Lock() error {
 	for err = syscall.Flock(fd, blockFlags); err == syscall.EINTR; err = syscall.Flock(fd, blockFlags) {
 	}
 	if err != nil {
-		//panic(os.PathError{Op: "flock", Path: file.Name(), Err: err})
-		return err
+		return fmt.Errorf("syscall.Flock() failed on %q: %w", file.Name(), err)
 	}
 	l.file = file
 	return nil
@@ -58,7 +67,14 @@ func (l *FileLock) TryLock() bool {
 		return false
 	}
 
-	file, err := os.OpenFile(l.path, os.O_RDWR, 0660)
+	var err error
+	defer func() {
+		if err != nil {
+			l.mutex.Unlock()
+		}
+	}()
+
+	file, err := os.OpenFile(l.path, os.O_RDWR, 0o660)
 	if err != nil {
 		return false
 	}
@@ -70,7 +86,7 @@ func (l *FileLock) TryLock() bool {
 			l.mutex.Unlock()
 			return false
 		}
-		panic(os.PathError{Op: "flock", Path: file.Name(), Err: err})
+		return false
 	}
 	l.file = file
 	return true
@@ -78,14 +94,11 @@ func (l *FileLock) TryLock() bool {
 
 func (l *FileLock) Unlock() {
 	if l.file == nil {
-		return
-		//panic(ErrorNotLocked)
+		panic(ErrorNotLocked)
 	}
 	err := l.file.Close()
 	if err != nil {
-		return
-		//panic(err)
-
+		panic(err)
 	}
 	l.file = nil
 	l.mutex.Unlock()

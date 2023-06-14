@@ -33,7 +33,7 @@ func (suite *FilelockSuite) TestNewNoDir() {
 func (suite *FilelockSuite) TestLock_LockUnlock() {
 	fl, _ := filelock.New("tmp.lock")
 
-	suite.NotPanics(fl.Lock)
+	suite.NoError(fl.Lock())
 	suite.NotPanics(fl.Unlock)
 }
 
@@ -53,7 +53,7 @@ func (suite *FilelockSuite) TestUnlock_NotLocked() {
 func (suite *FilelockSuite) TestTryLock_AfterLock() {
 	fl, _ := filelock.New("tmp.lock")
 
-	suite.NotPanics(fl.Lock)
+	suite.NoError(fl.Lock())
 	suite.False(fl.TryLock())
 	suite.NotPanics(fl.Unlock)
 }
@@ -62,7 +62,7 @@ func (suite *FilelockSuite) TestTryLock_AfterLock_DifferentInstances() {
 	fl, _ := filelock.New("tmp.lock")
 	fl1, _ := filelock.New("tmp.lock")
 
-	suite.NotPanics(fl.Lock)
+	suite.NoError(fl.Lock())
 	suite.False(fl1.TryLock())
 	suite.NotPanics(fl.Unlock)
 }
@@ -88,7 +88,7 @@ func (suite *FilelockSuite) TestLockConcurrent_SeveralInstances() {
 			fl, _ := filelock.New("tmp.lock")
 			prepared <- struct{}{}
 			<-start
-			suite.NotPanics(fl.Lock)
+			suite.NoError(fl.Lock())
 			time.Sleep(sleep)
 			suite.NotPanics(fl.Unlock)
 			wg.Done()
@@ -117,7 +117,7 @@ func (suite *FilelockSuite) TestLockConcurrent_OneInstance() {
 		go func() {
 			prepared <- struct{}{}
 			<-start
-			suite.NotPanics(fl.Lock)
+			suite.NoError(fl.Lock())
 			time.Sleep(sleep)
 			suite.NotPanics(fl.Unlock)
 			wg.Done()
