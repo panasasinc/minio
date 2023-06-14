@@ -779,10 +779,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 	}
 
 	globalBucketMetadataCache.Delete(bucket)
-	if fs.configAgent != nil {
-		// NOTE:llorens: do nothing, deleteBucketMetadata() will do
-		// everything that's needed.
-	} else {
+	if fs.configAgent == nil {
 		if err = fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket)); err != nil {
 			return toObjectErr(err, bucket)
 		}
