@@ -745,12 +745,14 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	}
 	defer func() {
 		if err == nil {
+			file.flock.Unlock()
+			fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
 			fs.appendFileMapMu.Lock()
 			delete(fs.appendFileMap, uploadID)
 			fs.appendFileMapMu.Unlock()
-			fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
+		} else {
+			file.flock.Unlock()
 		}
-		file.flock.Unlock()
 	}()
 
 	// ensure that uploadId dir is still here
@@ -1027,14 +1029,16 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 	}
 	defer func() {
 		if err == nil {
+			file.flock.Unlock()
+			// remove lock file
+			fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
 			// Delete append file from memory only if no error occurred during mkdir and rename on next steps
 			fs.appendFileMapMu.Lock()
 			delete(fs.appendFileMap, uploadID)
 			fs.appendFileMapMu.Unlock()
-			// remove lock file
-			fsRemoveFile(ctx, fs.getMultipartLockFile(bucketPath, object, uploadID))
+		} else {
+			file.flock.Unlock()
 		}
-		file.flock.Unlock()
 	}()
 
 	// ensure that uploadId dir is still here
