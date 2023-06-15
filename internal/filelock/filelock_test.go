@@ -1,6 +1,8 @@
 package filelock_test
 
 import (
+	"os"
+	"path"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +14,15 @@ import (
 
 type FilelockSuite struct {
 	suite.Suite
+	lockFile string
+}
+
+func (suite *FilelockSuite) SetupTest() {
+	tmpDir := suite.T().TempDir()
+	lockPath := path.Join(tmpDir, "tmp.lock")
+	_, err := os.Create(lockPath)
+	suite.lockFile = lockPath
+	suite.NoError(err)
 }
 
 func TestFilelockSuite(t *testing.T) {
@@ -19,39 +30,39 @@ func TestFilelockSuite(t *testing.T) {
 }
 
 func (suite *FilelockSuite) TestNew() {
-	fl, err := filelock.New("tmp.lock")
+	fl, err := filelock.New(suite.lockFile)
 	suite.NoError(err)
 	suite.NotNil(fl)
 }
 
 func (suite *FilelockSuite) TestNewNoDir() {
 	fl, err := filelock.New("not_exist/tmp.lock")
-	suite.ErrorIs(err, filelock.ErrorDirNotExists)
+	suite.ErrorIs(err, filelock.ErrorFileNotExists)
 	suite.Nil(fl)
 }
 
 func (suite *FilelockSuite) TestLock_LockUnlock() {
-	fl, _ := filelock.New("tmp.lock")
-
-	suite.NoError(fl.Lock())
+	fl, _ := filelock.New(suite.lockFile)
+	err := fl.Lock()
+	suite.NoError(err)
 	suite.NotPanics(fl.Unlock)
 }
 
 func (suite *FilelockSuite) TestTryLock_LockUnlock() {
-	fl, _ := filelock.New("tmp.lock")
+	fl, _ := filelock.New(suite.lockFile)
 
 	suite.True(fl.TryLock())
 	suite.NotPanics(fl.Unlock)
 }
 
 func (suite *FilelockSuite) TestUnlock_NotLocked() {
-	fl, _ := filelock.New("tmp.lock")
+	fl, _ := filelock.New(suite.lockFile)
 
 	suite.Panics(fl.Unlock)
 }
 
 func (suite *FilelockSuite) TestTryLock_AfterLock() {
-	fl, _ := filelock.New("tmp.lock")
+	fl, _ := filelock.New(suite.lockFile)
 
 	suite.NoError(fl.Lock())
 	suite.False(fl.TryLock())
@@ -59,8 +70,8 @@ func (suite *FilelockSuite) TestTryLock_AfterLock() {
 }
 
 func (suite *FilelockSuite) TestTryLock_AfterLock_DifferentInstances() {
-	fl, _ := filelock.New("tmp.lock")
-	fl1, _ := filelock.New("tmp.lock")
+	fl, _ := filelock.New(suite.lockFile)
+	fl1, _ := filelock.New(suite.lockFile)
 
 	suite.NoError(fl.Lock())
 	suite.False(fl1.TryLock())
@@ -68,7 +79,7 @@ func (suite *FilelockSuite) TestTryLock_AfterLock_DifferentInstances() {
 }
 
 func (suite *FilelockSuite) TestTryLock_AfterTryLock() {
-	fl, _ := filelock.New("tmp.lock")
+	fl, _ := filelock.New(suite.lockFile)
 
 	suite.True(fl.TryLock())
 	suite.False(fl.TryLock())
@@ -85,7 +96,7 @@ func (suite *FilelockSuite) TestLockConcurrent_SeveralInstances() {
 	for i := 0; i < cnt; i++ {
 		wg.Add(1)
 		go func() {
-			fl, _ := filelock.New("tmp.lock")
+			fl, _ := filelock.New(suite.lockFile)
 			prepared <- struct{}{}
 			<-start
 			suite.NoError(fl.Lock())
@@ -110,7 +121,8 @@ func (suite *FilelockSuite) TestLockConcurrent_OneInstance() {
 	prepared := make(chan struct{}, cnt)
 	wg := &sync.WaitGroup{}
 	sleep := time.Millisecond * 100
-	fl, _ := filelock.New("tmp.lock")
+
+	fl, _ := filelock.New(suite.lockFile)
 
 	for i := 0; i < cnt; i++ {
 		wg.Add(1)
@@ -134,8 +146,8 @@ func (suite *FilelockSuite) TestLockConcurrent_OneInstance() {
 }
 
 func (suite *FilelockSuite) TestTwoInstance_LockTryLock() {
-	fl, _ := filelock.New("tmp.lock")
-	fl1, _ := filelock.New("tmp.lock")
+	fl, _ := filelock.New(suite.lockFile)
+	fl1, _ := filelock.New(suite.lockFile)
 
 	fl.Lock()
 	suite.False(fl1.TryLock())

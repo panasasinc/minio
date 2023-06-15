@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 	"syscall"
 )
@@ -12,7 +11,7 @@ import (
 var (
 	ErrorNotLocked        = errors.New("not locked")
 	ErrorLocked           = errors.New("already locked")
-	ErrorDirNotExists     = errors.New("directory of file not exists")
+	ErrorFileNotExists    = errors.New("lock is not exists")
 	ErrorCannotCreateFind = errors.New("cannot create or find file")
 )
 
@@ -29,9 +28,9 @@ type FileLock struct {
 }
 
 func New(path string) (*FileLock, error) {
-	stat, err := os.Stat(filepath.Dir(path))
-	if (err != nil && os.IsNotExist(err)) || !stat.IsDir() {
-		return nil, ErrorDirNotExists
+	stat, err := os.Stat(path)
+	if (err != nil && os.IsNotExist(err)) || stat.IsDir() {
+		return nil, ErrorFileNotExists
 	}
 	return &FileLock{
 		path:  path,
@@ -67,7 +66,7 @@ func (l *FileLock) TryLock() bool {
 		return false
 	}
 
-	var err error
+	var err error = nil
 	defer func() {
 		if err != nil {
 			l.mutex.Unlock()
@@ -83,7 +82,6 @@ func (l *FileLock) TryLock() bool {
 	if err = syscall.Flock(fd, noBlockFlags); err != nil {
 		if err == syscall.EAGAIN || err == syscall.EACCES {
 			_ = file.Close()
-			l.mutex.Unlock()
 			return false
 		}
 		return false
