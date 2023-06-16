@@ -70,17 +70,17 @@ func (fs *PANFSObjects) getObjectBackgroundAppendPath(bucketPath, object, upload
 }
 
 // getPanFSMultipartAppendFile returns and initialize panfsAppendFile struct
-func (fs *PANFSObjects) getPanFSMultipartAppendFile(bucketPath, object, uploadID string) *panfsAppendFile {
+func (fs *PANFSObjects) getPanFSMultipartAppendFile(bucketPath, object, uploadID string) (*panfsAppendFile, error) {
 	flock, err := filelock.New(fs.getMultipartLockFile(bucketPath, object, uploadID))
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	appendFile := &panfsAppendFile{
 		filePath: fs.getObjectBackgroundAppendPath(bucketPath, object, uploadID),
 		flock:    flock,
 	}
-	return appendFile
+	return appendFile, nil
 }
 
 // Returns partNumber.etag
@@ -116,8 +116,8 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	fs.appendFileMapMu.Lock()
 	file := fs.appendFileMap[uploadID]
 	if file == nil {
-		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
-		if file == nil {
+		file, err = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
+		if err != nil {
 			fs.appendFileMapMu.Unlock()
 			return
 		}
@@ -213,11 +213,11 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 
 	// Update info about uploaded parts
 	panfsPartsTmpPath := pathJoin(bucketPath, panfsS3TmpDir, mustGetUUID())
-	defer func(err error) {
+	defer func() {
 		if err != nil {
 			fsRemoveFile(ctx, panfsPartsTmpPath)
 		}
-	}(err)
+	}()
 	if err = os.WriteFile(panfsPartsTmpPath, panfsPartsBytes, 0o660); err != nil {
 		logger.LogIf(ctx, err)
 		return
@@ -730,12 +730,14 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	// 1. The last PutObjectPart triggers go-routine fs.backgroundAppend, this go-routine has not started yet.
 	// 2. Now CompleteMultipartUpload gets called which sees that lastPart is not appended and starts appending
 	//    from the beginning
-	// there are no info about mpart upload in memory
 	fs.appendFileMapMu.Lock()
 	file := fs.appendFileMap[uploadID]
 	if file == nil {
-		// This may happen when complete upload is called from node where no parts were uploaded
-		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
+		file, err = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
+		if err != nil {
+			fs.appendFileMapMu.Unlock()
+			return oi, err
+		}
 		fs.appendFileMap[uploadID] = file
 	}
 	fs.appendFileMapMu.Unlock()
@@ -842,7 +844,6 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	}
 
 	appendFallback := true // In case background-append did not append the required parts.
-	appendFilePath := fs.getObjectBackgroundAppendPath(bucketPath, object, uploadID)
 
 	fs.backgroundAppend(ctx, bucket, object, uploadID, false)
 
@@ -857,16 +858,15 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 				break
 			}
 			if i == len(parts)-1 {
-				appendFilePath = file.filePath
 				appendFallback = false
 			}
 		}
 	}
 
 	if appendFallback {
-		if file != nil {
-			fsRemoveFile(ctx, file.filePath)
-		}
+		fsRemoveFile(ctx, file.filePath)
+		fsRemoveFile(ctx, fs.getUploadIDFilePartsPath(bucketPath, object, uploadID))
+
 		for _, part := range parts {
 			partFile := getPartFile(entriesTrie, part.PartNumber, part.ETag)
 			if partFile == "" {
@@ -877,7 +877,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 					GotETag:    part.ETag,
 				}
 			}
-			if err = xioutil.AppendFile(appendFilePath, pathJoin(uploadIDDir, partFile), globalFSOSync); err != nil {
+			if err = xioutil.AppendFile(file.filePath, pathJoin(uploadIDDir, partFile), globalFSOSync); err != nil {
 				logger.LogIf(ctx, err)
 				return oi, toObjectErr(err)
 			}
@@ -951,7 +951,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 	}
 
 	uid, gid := fs.getOwnerGroupIDs(ctx)
-	err = panfsPublishFile(appendFilePath, pathJoin(bucketPath, object), fs.defaultObjMode, fs.defaultDirMode, uid, gid)
+	err = panfsPublishFile(file.filePath, pathJoin(bucketPath, object), fs.defaultObjMode, fs.defaultDirMode, uid, gid)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return oi, toObjectErr(err, bucket, object)
@@ -1018,10 +1018,13 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 	}
 
 	fs.appendFileMapMu.Lock()
-	// Remove file in tmp folder
 	file := fs.appendFileMap[uploadID]
 	if file == nil {
-		file = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
+		file, err = fs.getPanFSMultipartAppendFile(bucketPath, object, uploadID)
+		if err != nil {
+			fs.appendFileMapMu.Unlock()
+			return err
+		}
 		fs.appendFileMap[uploadID] = file
 	}
 	fs.appendFileMapMu.Unlock()
@@ -1062,10 +1065,6 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 	if err != nil {
 		return toObjectErr(err, bucket, object)
 	}
-
-	// It is safe to ignore any directory not empty error (in case there were multiple uploadIDs on the same object)
-	fsRemoveDir(ctx, fs.getMultipartSHADir(bucketPath, object))
-
 	return nil
 }
 
@@ -1074,19 +1073,30 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 func (fs *PANFSObjects) getAllUploadIDs(ctx context.Context) (result map[string]string) {
 	result = make(map[string]string)
 
-	entries, err := fs.ListBuckets(ctx, BucketOptions{})
+	buckets, err := fs.ListBuckets(ctx, BucketOptions{})
 	if err != nil {
 		return
 	}
-	for _, entry := range entries {
-		uploadIDs, err := readDir(pathJoin(entry.PanFSPath, panfsS3MultipartDir))
+	for _, bucket := range buckets {
+		bucketMPartDir := pathJoin(bucket.PanFSPath, panfsS3MultipartDir)
+		objects, err := readDir(bucketMPartDir)
 		if err != nil {
 			continue
 		}
-		// Remove the trailing slash separator
-		for i := range uploadIDs {
-			uploadID := strings.TrimSuffix(uploadIDs[i], SlashSeparator)
-			result[uploadID] = pathJoin(entry.PanFSPath, panfsS3MultipartDir, uploadID)
+		for _, object := range objects {
+			uploadIDs, err := readDir(pathJoin(bucketMPartDir, object))
+			if err != nil {
+				continue
+			}
+
+			// Remove the trailing slash separator
+			for i := range uploadIDs {
+				uploadID := strings.TrimSuffix(uploadIDs[i], SlashSeparator)
+				uploadIDDir := pathJoin(bucket.PanFSPath, panfsS3MultipartDir, object, uploadID)
+				if _, err = fsStatDir(ctx, uploadIDDir); err == nil {
+					result[uploadID] = pathJoin(uploadIDDir)
+				}
+			}
 		}
 	}
 	return
@@ -1096,7 +1106,6 @@ func (fs *PANFSObjects) getAllUploadIDs(ctx context.Context) (result map[string]
 // on all buckets for every `cleanupInterval`, this function is
 // blocking and should be run in a go-routine.
 func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
-	// TODO: test me
 	expiryUploadsTimer := time.NewTimer(globalAPIConfig.getStaleUploadsCleanupInterval())
 	defer expiryUploadsTimer.Stop()
 
@@ -1110,6 +1119,10 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 		case <-bgAppendTmpCleaner.C:
 			foundUploadIDs := fs.getAllUploadIDs(ctx)
 
+			// If between getting list of uploads and taking a lock below any bg append adds a new record into the
+			// in-memory map of uploads then the following for-loop will delete it from memory as it was not presented
+			// in disk at the time of read
+
 			// Remove background append map from the memory
 			fs.appendFileMapMu.Lock()
 			for uploadID := range fs.appendFileMap {
@@ -1120,21 +1133,28 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 			}
 			fs.appendFileMapMu.Unlock()
 
-			// Remove background appends file from the disk
-			bgAppendsDir := pathJoin(fs.fsPath, minioMetaTmpBucket, fs.nodeDataSerial, bgAppendsDirName)
-			entries, err := readDir(bgAppendsDir)
+			var entries []string
+			buckets, err := fs.ListBuckets(ctx, BucketOptions{})
 			if err != nil {
-				break
-			}
-			for _, entry := range entries {
-				uploadID := strings.Split(entry, ".")[0]
-				_, ok := foundUploadIDs[uploadID]
-				if !ok {
-					fsRemoveFile(ctx, pathJoin(bgAppendsDir, entry))
-				}
+				goto resetTimer
 			}
 
+			for _, bucket := range buckets {
+				entries, err = readDir(pathJoin(bucket.PanFSPath, panfsS3TmpDir, bgAppendsDirName))
+				if err != nil {
+					goto resetTimer
+				}
+				for _, entry := range entries {
+					// entry named exactly as upload id
+					_, ok := foundUploadIDs[entry]
+					if !ok {
+						fsRemoveFile(ctx, pathJoin(pathJoin(bucket.PanFSPath, panfsS3TmpDir, bgAppendsDirName, entry)))
+					}
+				}
+			}
+		resetTimer:
 			bgAppendTmpCleaner.Reset(panbgAppendsCleanupInterval)
+
 		case <-expiryUploadsTimer.C:
 			expiry := globalAPIConfig.getStaleUploadsExpiry()
 			now := time.Now()
