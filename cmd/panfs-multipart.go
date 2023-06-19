@@ -151,7 +151,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		if err != nil {
 			logger.GetReqInfo(ctx).AppendTags("uploadIDDir", uploadIDDir)
 			logger.LogIf(ctx, err)
-			return
+			break
 		}
 		sort.Strings(entries)
 
@@ -204,14 +204,13 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		return
 	}
 
-	// Write info about appended parts
+	// Update info about uploaded parts
 	panfsPartsBytes, err := json.Marshal(fsParts)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return
 	}
 
-	// Update info about uploaded parts
 	panfsPartsTmpPath := pathJoin(bucketPath, panfsS3TmpDir, mustGetUUID())
 	defer func() {
 		if err != nil {
@@ -713,10 +712,10 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 
 	handleStatMetaFileError := func(e error) error {
 		// caller is responsible to check that e is not nil
-		if err == errFileNotFound || err == errFileAccessDenied {
+		if e == errFileNotFound || e == errFileAccessDenied {
 			return InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
 		}
-		return toObjectErr(err, bucket, object)
+		return toObjectErr(e, bucket, object)
 	}
 
 	// Just check if the uploadID exists to avoid copy if it doesn't.
@@ -1005,10 +1004,10 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 
 	handleStatMetaFileError := func(e error) error {
 		// caller is responsible to check that e is not nil
-		if err == errFileNotFound || err == errFileAccessDenied {
+		if e == errFileNotFound || e == errFileAccessDenied {
 			return InvalidUploadID{Bucket: bucket, Object: object, UploadID: uploadID}
 		}
-		return toObjectErr(err, bucket, object)
+		return toObjectErr(e, bucket, object)
 	}
 
 	uploadIDDir := fs.getUploadIDDir(bucketPath, object, uploadID)
@@ -1051,20 +1050,18 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 	if err != nil {
 		return handleStatMetaFileError(err)
 	}
-	fsRemoveFile(ctx, file.filePath)
-
 	// Purge multipart folders
 	tempDir := pathJoin(fs.getTempDir(bucketPath), mustGetUUID())
 	if err = MkdirAll(tempDir, 0o755); err != nil {
 		return toObjectErr(err, bucket, object)
 	}
-	fsTmpObjPath := pathJoin(tempDir, mustGetUUID())
-	defer fsRemoveAll(ctx, fsTmpObjPath)
+	defer fsRemoveAll(ctx, tempDir)
 
-	err = Rename(uploadIDDir, fsTmpObjPath)
+	err = Rename(uploadIDDir, tempDir)
 	if err != nil {
 		return toObjectErr(err, bucket, object)
 	}
+	fsRemoveFile(ctx, file.filePath)
 	return nil
 }
 
@@ -1094,7 +1091,7 @@ func (fs *PANFSObjects) getAllUploadIDs(ctx context.Context) (result map[string]
 				uploadID := strings.TrimSuffix(uploadIDs[i], SlashSeparator)
 				uploadIDDir := pathJoin(bucket.PanFSPath, panfsS3MultipartDir, object, uploadID)
 				if _, err = fsStatDir(ctx, uploadIDDir); err == nil {
-					result[uploadID] = pathJoin(uploadIDDir)
+					result[uploadID] = uploadIDDir
 				}
 			}
 		}
@@ -1123,7 +1120,7 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 			// in-memory map of uploads then the following for-loop will delete it from memory as it was not presented
 			// in disk at the time of read
 
-			// Remove background append map from the memory
+			// Remove background append entry from the memory
 			fs.appendFileMapMu.Lock()
 			for uploadID := range fs.appendFileMap {
 				_, ok := foundUploadIDs[uploadID]
@@ -1133,6 +1130,7 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 			}
 			fs.appendFileMapMu.Unlock()
 
+			// TODO: update in separate story
 			var entries []string
 			buckets, err := fs.ListBuckets(ctx, BucketOptions{})
 			if err != nil {
