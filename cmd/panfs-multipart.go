@@ -151,7 +151,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		if err != nil {
 			logger.GetReqInfo(ctx).AppendTags("uploadIDDir", uploadIDDir)
 			logger.LogIf(ctx, err)
-			return
+			break
 		}
 		sort.Strings(entries)
 
@@ -179,6 +179,10 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 				reqInfo := logger.GetReqInfo(ctx).AppendTags("partPath", partPath)
 				reqInfo.AppendTags("filepath", file.filePath)
 				logger.LogIf(ctx, err)
+
+				// If an error occurred during append - target file might be corrupted - delete it and mparts.json
+				fsRemoveFile(ctx, fs.getUploadIDFilePartsPath(bucketPath, object, uploadID))
+				fsRemoveFile(ctx, file.filePath)
 				return
 			}
 
@@ -204,20 +208,24 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		return
 	}
 
-	// Write info about appended parts
+	panfsPartsTmpPath := pathJoin(bucketPath, panfsS3TmpDir, mustGetUUID())
+	defer func() {
+		// Clear tmp meta path in case of error. Deletes appended file and mparts.json as well as these files may
+		// contain wrong data of be corrupted
+		if err != nil {
+			fsRemoveFile(ctx, panfsPartsTmpPath)
+			fsRemoveFile(ctx, fs.getUploadIDFilePartsPath(bucketPath, object, uploadID))
+			fsRemoveFile(ctx, file.filePath)
+		}
+	}()
+
+	// Update info about uploaded parts
 	panfsPartsBytes, err := json.Marshal(fsParts)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return
 	}
 
-	// Update info about uploaded parts
-	panfsPartsTmpPath := pathJoin(bucketPath, panfsS3TmpDir, mustGetUUID())
-	defer func() {
-		if err != nil {
-			fsRemoveFile(ctx, panfsPartsTmpPath)
-		}
-	}()
 	if err = os.WriteFile(panfsPartsTmpPath, panfsPartsBytes, 0o660); err != nil {
 		logger.LogIf(ctx, err)
 		return
@@ -1146,9 +1154,9 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 				}
 				for _, entry := range entries {
 					// entry named exactly as upload id
-					_, ok := foundUploadIDs[entry]
+					_, ok := foundUploadIDs[entry] // TODO: test me
 					if !ok {
-						fsRemoveFile(ctx, pathJoin(pathJoin(bucket.PanFSPath, panfsS3TmpDir, bgAppendsDirName, entry)))
+						fsRemoveDir(ctx, pathJoin(pathJoin(bucket.PanFSPath, panfsS3TmpDir, bgAppendsDirName, entry)))
 					}
 				}
 			}
