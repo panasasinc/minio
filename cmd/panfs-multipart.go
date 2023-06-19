@@ -1051,13 +1051,14 @@ func (fs *PANFSObjects) AbortMultipartUpload(ctx context.Context, bucket, object
 		return handleStatMetaFileError(err)
 	}
 	// Purge multipart folders
-	tempDir := pathJoin(fs.getTempDir(bucketPath), mustGetUUID())
+	tempDir := fs.getTempDir(bucketPath)
 	if err = MkdirAll(tempDir, 0o755); err != nil {
 		return toObjectErr(err, bucket, object)
 	}
-	defer fsRemoveAll(ctx, tempDir)
+	fsTmpPath := pathJoin(tempDir, MustGetUUID())
+	defer fsRemoveAll(ctx, fsTmpPath)
 
-	err = Rename(uploadIDDir, tempDir)
+	err = Rename(uploadIDDir, fsTmpPath)
 	if err != nil {
 		return toObjectErr(err, bucket, object)
 	}
