@@ -44,6 +44,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/tags"
 	"github.com/minio/minio/internal/color"
 	"github.com/minio/minio/internal/config"
+	"github.com/minio/minio/internal/filelock"
 	xhttp "github.com/minio/minio/internal/http"
 	xioutil "github.com/minio/minio/internal/ioutil"
 	"github.com/minio/minio/internal/lock"
@@ -117,6 +118,7 @@ type PANFSObjects struct {
 // Represents the background append file.
 type panfsAppendFile struct {
 	sync.Mutex
+	flock    *filelock.FileLock
 	parts    []PartInfo // List of parts appended.
 	filePath string     // Absolute path of the file in the temp location.
 }

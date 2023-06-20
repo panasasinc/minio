@@ -120,6 +120,12 @@ type panfsMeta struct {
 	Parts []ObjectPartInfo `json:"parts,omitempty"`
 }
 
+// A panfsMultiParts stores information about current progress of multipart upload. Each uploaded part from background
+// append procedure should update that structure and write in disk
+type panfsMultiParts struct {
+	Parts []PartInfo `json:"parts,omitempty"`
+}
+
 // IsValid - tells if the format is sane by validating the version
 // string and format style.
 func (m panfsMeta) IsValid() bool {
