@@ -24,6 +24,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/minio/minio/internal/config"
@@ -163,6 +164,10 @@ func formatFSMigrate(ctx context.Context, wlk *lock.LockedFile, fsPath string) e
 
 // Creates a new format.json if unformatted.
 func createFormatFS(fsFormatPath string) error {
+	fsFormatPathDir := filepath.Dir(fsFormatPath)
+	if err := os.MkdirAll(fsFormatPathDir, 0o777); err != nil {
+		return err
+	}
 	// Attempt a write lock on formatConfigFile `format.json`
 	// file stored in minioMetaBucket(.minio.sys) directory.
 	lk, err := lock.TryLockedOpenFile(fsFormatPath, os.O_RDWR|os.O_CREATE, 0o666)

@@ -239,7 +239,7 @@ func initPanFSObjects(fs string) (obj ObjectLayer, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	obj, err = NewPANFSObjectLayer(ctx, fs)
+	obj, err = NewPANFSObjectLayer(ctx, fs, fs)
 	if err != nil {
 		return
 		// t.Fatal(err)

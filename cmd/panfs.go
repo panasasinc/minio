@@ -81,6 +81,8 @@ type PANFSObjects struct {
 
 	// Path to be exported over S3 API.
 	fsPath string
+	// place to store the MinIO meta bucket
+	fsMetaPath string
 	// meta json filename, varies by fs / cache backend.
 	metaJSONFile string
 	// Unique value to be used for all
@@ -124,34 +126,29 @@ type panfsAppendFile struct {
 }
 
 // Initializes meta volume on all the fs path.
-func initMetaVolumePANFS(fsPath, nodeDataSerial string) error {
+func initMetaVolumePANFS(fsMetaPath, nodeDataSerial string) error {
 	// This happens for the first time, but keep this here since this
 	// is the only place where it can be made less expensive
 	// optimizing all other calls. Create minio meta volume,
 	// if it doesn't exist yet.
-	metaBucketPath := pathJoin(fsPath, minioMetaBucket)
+	metaBucketPath := pathJoin(fsMetaPath, minioMetaBucket)
 
 	if err := os.MkdirAll(metaBucketPath, 0o777); err != nil {
 		return err
 	}
-	metaTmpPath := pathJoin(fsPath, minioMetaTmpBucket, nodeDataSerial)
-	if err := os.MkdirAll(metaTmpPath, 0o777); err != nil {
-		return err
-	}
 
-	return os.MkdirAll(pathJoin(fsPath, dataUsageBucket), 0o777)
+	return os.MkdirAll(pathJoin(fsMetaPath, dataUsageBucket), 0o777)
 }
 
-// NewPANFSObjectLayer - initialize new panfs object layer.
-func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error) {
-	if fsPath == "" {
-		return nil, errInvalidArgument
+func validatePath(path string) (string, error) {
+	if path == "" {
+		return "", errInvalidArgument
 	}
 
 	var err error
-	if fsPath, err = getValidPath(fsPath); err != nil {
+	if path, err = getValidPath(path); err != nil {
 		if err == errMinDiskSize {
-			return nil, config.ErrUnableToWriteInBackend(err).Hint(err.Error())
+			return "", config.ErrUnableToWriteInBackend(err).Hint(err.Error())
 		}
 
 		// Show a descriptive error with a hint about how to fix it.
@@ -161,15 +158,28 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 		} else {
 			username = "<your-username>"
 		}
-		hint := fmt.Sprintf("Use 'sudo chown -R %s %s && sudo chmod u+rxw %s' to provide sufficient permissions.", username, fsPath, fsPath)
-		return nil, config.ErrUnableToWriteInBackend(err).Hint(hint)
+		hint := fmt.Sprintf("Use 'sudo chown -R %s %s && sudo chmod u+rxw %s' to provide sufficient permissions.", username, path, path)
+		return "", config.ErrUnableToWriteInBackend(err).Hint(hint)
+	}
+	return path, nil
+}
+
+// NewPANFSObjectLayer - initialize new panfs object layer.
+func NewPANFSObjectLayer(ctx context.Context, fsPath string, metaVolumeFSPath string) (ObjectLayer, error) {
+	var err error
+
+	if fsPath, err = validatePath(fsPath); err != nil {
+		return nil, err
+	}
+	if metaVolumeFSPath, err = validatePath(metaVolumeFSPath); err != nil {
+		return nil, err
 	}
 
 	// initialize nodeDataSerial from environment variable or generate random UUID
 	nodeDataSerial := env.Get(config.EnvPanDataserial, mustGetUUID())
 
 	// Initialize meta volume, if volume already exists ignores it.
-	if err = initMetaVolumePANFS(fsPath, nodeDataSerial); err != nil {
+	if err = initMetaVolumePANFS(metaVolumeFSPath, nodeDataSerial); err != nil {
 		return nil, err
 	}
 
@@ -213,6 +223,7 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string) (ObjectLayer, error
 	// Initialize fs objects.
 	fs := &PANFSObjects{
 		fsPath:         fsPath,
+		fsMetaPath:     metaVolumeFSPath,
 		metaJSONFile:   panfsMetaJSONFile,
 		nodeDataSerial: nodeDataSerial,
 		rwPool: &fsIOPool{
@@ -522,7 +533,7 @@ func (fs *PANFSObjects) getBucketPanFSPath(ctx context.Context, bucket string) (
 		}
 		path = meta.PanFSPath
 	} else {
-		path = pathJoin(fs.fsPath, bucket)
+		path = pathJoin(fs.fsMetaPath, bucket)
 	}
 	return path, nil
 }

@@ -39,11 +39,11 @@ func TestNewPANFS(t *testing.T) {
 	disk := filepath.Join(globalTestTmpDir, "minio-"+nextSuffix())
 	defer os.RemoveAll(disk)
 
-	_, err := NewPANFSObjectLayer(ctx, "")
+	_, err := NewPANFSObjectLayer(ctx, "", "")
 	if err != errInvalidArgument {
 		t.Errorf("Expecting error invalid argument, got %s", err)
 	}
-	_, err = NewPANFSObjectLayer(ctx, disk)
+	_, err = NewPANFSObjectLayer(ctx, disk, disk)
 	if err != nil {
 		errMsg := "Unable to recognize backend format, Drive is not in FS format."
 		if err.Error() == errMsg {
