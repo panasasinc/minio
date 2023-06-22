@@ -22,6 +22,7 @@ import (
 	"github.com/minio/cli"
 	"github.com/minio/madmin-go"
 	minio "github.com/minio/minio/cmd"
+	"github.com/minio/pkg/env"
 )
 
 func init() {
@@ -42,12 +43,14 @@ EXAMPLES:
      {{.Prompt}} {{.EnvVarSetCommand}} MINIO_ROOT_USER{{.AssignmentOperator}}accesskey
      {{.Prompt}} {{.EnvVarSetCommand}} MINIO_ROOT_PASSWORD{{.AssignmentOperator}}secretkey
      {{.Prompt}} {{.EnvVarSetCommand}} MINIO_PANFS_BUCKET_PATH{{.AssignmentOperator}}path
+     {{.Prompt}} {{.EnvVarSetCommand}} MINIO_PANFS_METABUCKET_PATH{{.AssignmentOperator}}metaBucketPath
      {{.Prompt}} {{.HelpName}} /shared/panfsvol+
 
   2. Start minio gateway server for PANFS with edge caching enabled
      {{.Prompt}} {{.EnvVarSetCommand}} MINIO_ROOT_USER{{.AssignmentOperator}}accesskey
      {{.Prompt}} {{.EnvVarSetCommand}} MINIO_ROOT_PASSWORD{{.AssignmentOperator}}secretkey
      {{.Prompt}} {{.EnvVarSetCommand}} MINIO_PANFS_BUCKET_PATH{{.AssignmentOperator}}path
+     {{.Prompt}} {{.EnvVarSetCommand}} MINIO_PANFS_METABUCKET_PATH{{.AssignmentOperator}}metaBucketPath
      {{.Prompt}} {{.EnvVarSetCommand}} MINIO_CACHE_DRIVES{{.AssignmentOperator}}"/mnt/drive1,/mnt/drive2,/mnt/drive3,/mnt/drive4"
      {{.Prompt}} {{.EnvVarSetCommand}} MINIO_CACHE_EXCLUDE{{.AssignmentOperator}}"bucket1/*,*.png"
      {{.Prompt}} {{.EnvVarSetCommand}} MINIO_CACHE_QUOTA{{.AssignmentOperator}}90
@@ -73,12 +76,18 @@ func panfsGatewayMain(ctx *cli.Context) {
 		cli.ShowCommandHelpAndExit(ctx, minio.PANFSBackendGateway, 1)
 	}
 
-	minio.StartGateway(ctx, &PANFS{ctx.Args().First()})
+	var metaBucketPath string = env.Get(
+		"MINIO_PANFS_METABUCKET_PATH",
+		"/var/lib/minio",
+	)
+
+	minio.StartGateway(ctx, &PANFS{ctx.Args().First(), metaBucketPath})
 }
 
 // PANFS implements Gateway.
 type PANFS struct {
-	path string
+	path           string
+	metaBucketPath string
 }
 
 // Name implements Gateway interface.
@@ -89,7 +98,7 @@ func (g *PANFS) Name() string {
 // NewGatewayLayer returns panfs gatewaylayer.
 func (g *PANFS) NewGatewayLayer(creds madmin.Credentials) (minio.ObjectLayer, error) {
 	var err error
-	newObject, err := minio.NewPANFSObjectLayer(minio.GlobalContext, g.path)
+	newObject, err := minio.NewPANFSObjectLayer(minio.GlobalContext, g.path, g.metaBucketPath)
 	if err != nil {
 		return nil, err
 	}
