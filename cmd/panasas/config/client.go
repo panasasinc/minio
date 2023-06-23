@@ -35,7 +35,8 @@ type ErrUnexpectedHTTPStatus uint
 // ErrUnexpectedContentType informs about unexpected HTTP response content type
 type ErrUnexpectedContentType string
 
-const ConfigAgentOperationTimeout = 10 * time.Second
+// ConfigAgentOperationTimeout is a timeout for HTTP requests to the Config Agent
+const ConfigAgentOperationTimeout = 30 * time.Second
 
 func (e ErrUnexpectedHTTPStatus) Error() string {
 	return fmt.Sprintf("Unexpected HTTP status: %v", uint(e))
