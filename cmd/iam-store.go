@@ -1874,8 +1874,8 @@ func (store *IAMStoreSys) ListServiceAccounts(ctx context.Context, accessKey str
 }
 
 var (
-	RegexMappedSysUID = regexp.MustCompile("^uid:([1-9][0-9]*)$")
-	RegexMappedSysGID = regexp.MustCompile("^gid:([1-9][0-9]*)$")
+	RegexMappedSysUID = regexp.MustCompile("^uid:(0|[1-9][0-9]*)$")
+	RegexMappedSysGID = regexp.MustCompile("^gid:(0|[1-9][0-9]*)$")
 )
 
 // AddUser - adds/updates long term user account to storage.
