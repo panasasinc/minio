@@ -77,8 +77,9 @@ func (fs *PANFSObjects) getPanFSMultipartAppendFile(bucketPath, object, uploadID
 	}
 
 	appendFile := &panfsAppendFile{
-		filePath: fs.getObjectBackgroundAppendPath(bucketPath, object, uploadID),
-		flock:    flock,
+		filePath:      fs.getObjectBackgroundAppendPath(bucketPath, object, uploadID),
+		flock:         flock,
+		partsInfoFile: fs.getUploadIDFilePartsPath(bucketPath, object, uploadID),
 	}
 	return appendFile, nil
 }
@@ -128,6 +129,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	// No need to take a lock when bgAppend called from CompleteMultipartUpload which has been already taken the lock
 	if needFlock {
 		if !file.flock.TryLock() {
+			//logger.Info("[backgroundAppend] [%s] Cannot lock file - there is in progress", uid)
 			return
 		}
 		defer file.flock.Unlock()
@@ -142,9 +144,22 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		return
 	}
 	fsParts := fs.readMPartUploadParts(bucketPath, object, uploadID)
-	// Since we append sequentially nextPartNumber will always be len(fsParts.Appended)+1
+
+	//Since we append sequentially nextPartNumber will always be len(fsParts.Appended)+1
 	initialAppendedLen := len(fsParts.Parts)
 	nextPartNumber := initialAppendedLen + 1
+
+	// get appended file size and define variable to calculate appended file size based on mparts.json info
+	var fi os.FileInfo
+	var requiredAppendFileSize, actualAppendFileSize int64 = 0, 0
+	if fi, err = fsStatFile(ctx, file.filePath); err == nil {
+		actualAppendFileSize = fi.Size()
+	}
+
+	if initialAppendedLen == 0 {
+		// Remove appended file if exists. Ignoring an error
+		fsRemoveFile(ctx, file.filePath)
+	}
 
 	for {
 		entries, err := readDir(uploadIDDir)
@@ -154,11 +169,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 			break
 		}
 		sort.Strings(entries)
-
 		for _, entry := range entries {
-			if entry == fs.metaJSONFile {
-				continue
-			}
 			partNumber, etag, actualSize, err := fs.decodePartFile(entry)
 			if err != nil {
 				// Skip part files whose name don't match expected format. These could be backend filesystem specific files.
@@ -166,10 +177,23 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 			}
 			if partNumber < nextPartNumber {
 				// Part already appended.
+				requiredAppendFileSize += actualSize
 				continue
 			}
 			if partNumber > nextPartNumber {
 				// Required part number is not yet uploaded.
+				break
+			}
+
+			if requiredAppendFileSize != actualAppendFileSize {
+				// actual append file size is not match to parts sizes from mparts.json
+				if err = fsRemoveFile(ctx, file.filePath); err != nil {
+					return
+				}
+				if err = fsRemoveFile(ctx, file.partsInfoFile); err != nil {
+					return
+				}
+				initialAppendedLen = 0
 				break
 			}
 
@@ -184,7 +208,6 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 
 			partInfo := PartInfo{PartNumber: partNumber, ETag: etag, ActualSize: actualSize}
 			fsParts.Parts = append(fsParts.Parts, partInfo)
-			file.parts = append(file.parts, partInfo)
 			nextPartNumber++
 		}
 
@@ -201,6 +224,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 
 	// No parts appended - just return. No need to update meta file
 	if initialAppendedLen == len(fsParts.Parts) {
+		//logger.Info("[backgroundAppend] [%s] No parts appended - return", uid)
 		return
 	}
 
@@ -221,7 +245,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		logger.LogIf(ctx, err)
 		return
 	}
-	if err = PanRenameFile(panfsPartsTmpPath, fs.getUploadIDFilePartsPath(bucketPath, object, uploadID)); err != nil {
+	if err = PanRenameFile(panfsPartsTmpPath, file.partsInfoFile); err != nil {
 		logger.LogIf(ctx, err)
 		return
 	}

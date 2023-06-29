@@ -26,6 +26,7 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
+	"github.com/minio/minio/internal/etag"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -2571,6 +2572,272 @@ func testAPICopyObjectHandler(obj ObjectLayer, instanceType, bucketName string, 
 	// execute the object layer set to `nil` test.
 	// `ExecObjectLayerAPINilTest` manages the operation.
 	ExecObjectLayerAPINilTest(t, nilBucket, nilObject, instanceType, apiRouter, nilReq)
+}
+
+func TestUploadPartPanFSPathHandler(t *testing.T) {
+	ExecPanFSObjectLayerAPITest(t, testUploadPartPanFSPathHandler,
+		[]string{"NewMultipart", "PutObjectPart", "CompleteMultipart"})
+}
+
+func testUploadPartPanFSPathHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
+	credentials auth.Credentials, t *testing.T,
+) {
+	var (
+		oneMiB int64 = 1024 * 1024
+	)
+	fs := obj.(*PANFSObjects)
+	objectName := getRandomObjectName()
+	// Test description:
+	//Upload parts 1,2,3 -> Complete, validate object
+
+	rec := httptest.NewRecorder()
+	// construct HTTP request for NewMultipart upload.
+	req, err := newTestSignedRequestV4(http.MethodPost, getNewMultipartURL("", bucketName, objectName),
+		0, nil, credentials.AccessKey, credentials.SecretKey, nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request for NewMultipart Request: <ERROR> %v", err)
+	}
+	apiRouter.ServeHTTP(rec, req)
+	// Assert the response code with the expected status.
+	if rec.Code != http.StatusOK {
+		t.Fatalf("%s:  Expected the response status to be `%d`, but instead found `%d`", instanceType, http.StatusOK, rec.Code)
+	}
+
+	// decode the response body.
+	decoder := xml.NewDecoder(rec.Body)
+	multipartResponse := &InitiateMultipartUploadResponse{}
+
+	err = decoder.Decode(multipartResponse)
+	if err != nil {
+		t.Fatalf("Error decoding the recorded response Body")
+	}
+	// verify the uploadID my making an attempt to list parts.
+	_, err = fs.ListObjectParts(context.Background(), bucketName, objectName, multipartResponse.UploadID, 0, 1, ObjectOptions{})
+	if err != nil {
+		t.Fatalf("Invalid UploadID: <ERROR> %s", err)
+	}
+
+	parts := 3
+	partSize := 5 * oneMiB
+
+	// Upload 3 parts
+	uploadPartsF := func(parts int, size int64, objName string) []CompletePart {
+		var res []CompletePart
+		for i := 0; i < parts; i++ {
+			partSrc := NewDummyDataGen(partSize, partSize*int64(i))
+			partID := i + 1
+			req, err = newTestSignedRequestV4(http.MethodPut,
+				getPutObjectPartURL("", bucketName, objName, multipartResponse.UploadID, fmt.Sprintf("%d", partID)),
+				partSize, partSrc, credentials.AccessKey, credentials.SecretKey, map[string]string{})
+			if err != nil {
+				t.Fatalf("Unexpected err: %#v", err)
+			}
+			apiRouter.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				_, err := io.ReadAll(rec.Body)
+				t.Fatalf("Expected: %v, Got: %v, err: %v", http.StatusOK, rec.Code, err)
+			}
+			if v, ok := rec.Header()["ETag"]; ok {
+				et := v[0]
+				res = append(res, CompletePart{PartNumber: partID, ETag: et[1 : len(et)-1]})
+			} else {
+				t.Fatalf("Missing etag header")
+			}
+		}
+		return res
+	}
+
+	completeParts := uploadPartsF(parts, partSize, objectName)
+
+	// Call CompleteMultipart API
+	compMpBody, err := xml.Marshal(CompleteMultipartUpload{Parts: completeParts})
+	if err != nil {
+		t.Fatalf("Unexpected err: %#v", err)
+	}
+	reqC, errP := newTestSignedRequestV4(http.MethodPost,
+		getCompleteMultipartUploadURL("", bucketName, objectName, multipartResponse.UploadID),
+		int64(len(compMpBody)), bytes.NewReader(compMpBody),
+		credentials.AccessKey, credentials.SecretKey, nil)
+	if errP != nil {
+		t.Fatalf("Unexpected err: %#v", errP)
+	}
+	apiRouter.ServeHTTP(rec, reqC)
+	if rec.Code != http.StatusOK {
+		_, err := io.ReadAll(rec.Body)
+		t.Fatalf("Expected: %v, Got: %v, err: %v", http.StatusOK, rec.Code, err)
+	}
+
+	// validate ETag manually
+	oinfo, err := obj.GetObjectInfo(context.Background(), bucketName, objectName, ObjectOptions{})
+	if err != nil {
+		t.Fatalf("Unexpected err: %v", err)
+	}
+	mpartEtag := func(parts []CompletePart) etag.ETag {
+		var res []etag.ETag
+		for i := range parts {
+			et, err := etag.Parse(parts[i].ETag)
+			if err != nil {
+				t.Fatalf("Unexpected err: %v", err)
+			}
+			res = append(res, et)
+		}
+		return etag.Multipart(res...)
+	}(completeParts)
+
+	if mpartEtag.String() != oinfo.ETag {
+		t.Fatalf("Object etag (%s) expected to be equal to calculated etag from mparts (%s): \n",
+			mpartEtag.String(), oinfo.ETag)
+	}
+	nilBucket := "dummy-bucket"
+	nilObject := "dummy-object"
+
+	nilReq, err := newTestSignedRequestV4(http.MethodPost, getNewMultipartURL("", nilBucket, nilObject),
+		0, nil, "", "", nil)
+	if err != nil {
+		t.Errorf("MinIO %s: Failed to create HTTP request for testing the response when object Layer is set to `nil`.", instanceType)
+	}
+	// execute the object layer set to `nil` test.
+	// `ExecObjectLayerAPINilTest` manages the operation.
+	ExecObjectLayerAPINilTest(t, nilBucket, nilObject, instanceType, apiRouter, nilReq)
+}
+
+func TestUploadPartPanFSPathHandlerOverwritePart(t *testing.T) {
+	ExecPanFSObjectLayerAPITest(t, testUploadPartPanFSPathHandler,
+		[]string{"NewMultipart", "PutObjectPart", "CompleteMultipart"})
+}
+
+func testUploadPartPanFSPathHandlerOverwritePart(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
+	credentials auth.Credentials, t *testing.T,
+) {
+	var (
+		oneMiB int64 = 1024 * 1024
+	)
+	fs := obj.(*PANFSObjects)
+	objectName := getRandomObjectName()
+	// Test description:
+	//Upload parts 1,2,3 -> Complete, validate object
+
+	// Upload parts 1,2,3 -> Complete, validate object
+	rec := httptest.NewRecorder()
+
+	// Test description:
+	//Upload parts 1*,2,3 -> upload part 1 again -> Complete, validate object. (part 1 will be overwritten)
+	req, err := newTestSignedRequestV4(http.MethodPost, getNewMultipartURL("", bucketName, objectName),
+		0, nil, credentials.AccessKey, credentials.SecretKey, nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request for NewMultipart Request: <ERROR> %v", err)
+	}
+	apiRouter.ServeHTTP(rec, req)
+	// Assert the response code with the expected status.
+	if rec.Code != http.StatusOK {
+		t.Fatalf("%s:  Expected the response status to be `%d`, but instead found `%d`", instanceType, http.StatusOK, rec.Code)
+	}
+
+	// decode the response body.
+	decoder := xml.NewDecoder(rec.Body)
+	multipartResponse := &InitiateMultipartUploadResponse{}
+
+	err = decoder.Decode(multipartResponse)
+	if err != nil {
+		t.Fatalf("Error decoding the recorded response Body: %v", err)
+	}
+	// verify the uploadID my making an attempt to list parts.
+	_, err = fs.ListObjectParts(context.Background(), bucketName, objectName, multipartResponse.UploadID, 0, 1, ObjectOptions{})
+	if err != nil {
+		t.Fatalf("Invalid UploadID: <ERROR> %s", err)
+	}
+
+	parts := 3
+	partSize := 5 * oneMiB
+
+	uploadPartsF := func(parts int, size int64, objName string) []CompletePart {
+		var res []CompletePart
+		for i := 0; i < parts; i++ {
+			partSrc := NewDummyDataGen(partSize, partSize*int64(i))
+			partID := i + 1
+			req, err = newTestSignedRequestV4(http.MethodPut,
+				getPutObjectPartURL("", bucketName, objName, multipartResponse.UploadID, fmt.Sprintf("%d", partID)),
+				partSize, partSrc, credentials.AccessKey, credentials.SecretKey, map[string]string{})
+			if err != nil {
+				t.Fatalf("Unexpected err: %#v", err)
+			}
+			apiRouter.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				_, err := io.ReadAll(rec.Body)
+				t.Fatalf("Expected: %v, Got: %v, err: %v", http.StatusOK, rec.Code, err)
+			}
+			if v, ok := rec.Header()["ETag"]; ok {
+				et := v[0]
+				res = append(res, CompletePart{PartNumber: partID, ETag: et[1 : len(et)-1]})
+			} else {
+				t.Fatalf("Missing etag header")
+			}
+		}
+		return res
+	}
+	// Upload parts
+	completeParts := uploadPartsF(parts, partSize, objectName)
+
+	// Rewrite part 1
+	partSrc := NewDummyDataGen(partSize, partSize*int64(4))
+	partID := 1
+	req, err = newTestSignedRequestV4(http.MethodPut,
+		getPutObjectPartURL("", bucketName, objectName, multipartResponse.UploadID, fmt.Sprintf("%d", partID)),
+		partSize, partSrc, credentials.AccessKey, credentials.SecretKey, map[string]string{})
+	if err != nil {
+		t.Fatalf("Unexpected err: %#v", err)
+	}
+	apiRouter.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		_, err := io.ReadAll(rec.Body)
+		t.Fatalf("Expected: %v, Got: %v, err: %v", http.StatusOK, rec.Code, err)
+	}
+	if v, ok := rec.Header()["ETag"]; ok {
+		et := v[0]
+		completeParts[0] = CompletePart{PartNumber: partID, ETag: et[1 : len(et)-1]}
+	} else {
+		t.Fatalf("Missing etag header")
+	}
+
+	// Call CompleteMultipart API
+	compMpBody, err := xml.Marshal(CompleteMultipartUpload{Parts: completeParts})
+	if err != nil {
+		t.Fatalf("Unexpected err: %#v", err)
+	}
+	reqC, errP := newTestSignedRequestV4(http.MethodPost,
+		getCompleteMultipartUploadURL("", bucketName, objectName, multipartResponse.UploadID),
+		int64(len(compMpBody)), bytes.NewReader(compMpBody),
+		credentials.AccessKey, credentials.SecretKey, nil)
+	if errP != nil {
+		t.Fatalf("Unexpected err: %#v", errP)
+	}
+	apiRouter.ServeHTTP(rec, reqC)
+	if rec.Code != http.StatusOK {
+		_, err := io.ReadAll(rec.Body)
+		t.Fatalf("Expected: %v, Got: %v, err: %v", http.StatusOK, rec.Code, err)
+	}
+
+	// validate ETag manually
+	oinfo, err := obj.GetObjectInfo(context.Background(), bucketName, objectName, ObjectOptions{})
+	if err != nil {
+		t.Fatalf("Unexpected err: %v", err)
+	}
+	mpartEtag := func(parts []CompletePart) etag.ETag {
+		var res []etag.ETag
+		for i := range parts {
+			et, err := etag.Parse(parts[i].ETag)
+			if err != nil {
+				t.Fatalf("Unexpected err: %v", err)
+			}
+			res = append(res, et)
+		}
+		return etag.Multipart(res...)
+	}(completeParts)
+
+	if mpartEtag.String() != oinfo.ETag {
+		t.Fatalf("Object etag (%s) expected to be equal to calculated etag from mparts (%s): \n",
+			mpartEtag.String(), oinfo.ETag)
+	}
 }
 
 // Wrapper for calling NewMultipartUpload tests for both Erasure multiple disks and single node setup.
