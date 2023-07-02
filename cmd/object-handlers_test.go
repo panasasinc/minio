@@ -26,7 +26,6 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
-	"github.com/minio/minio/internal/etag"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -39,6 +38,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/minio/minio/internal/etag"
 
 	"github.com/dustin/go-humanize"
 	"github.com/minio/minio/internal/auth"
@@ -2582,13 +2583,11 @@ func TestUploadPartPanFSPathHandler(t *testing.T) {
 func testUploadPartPanFSPathHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
 	credentials auth.Credentials, t *testing.T,
 ) {
-	var (
-		oneMiB int64 = 1024 * 1024
-	)
+	var oneMiB int64 = 1024 * 1024
 	fs := obj.(*PANFSObjects)
 	objectName := getRandomObjectName()
 	// Test description:
-	//Upload parts 1,2,3 -> Complete, validate object
+	// Upload parts 1,2,3 -> Complete, validate object
 
 	rec := httptest.NewRecorder()
 	// construct HTTP request for NewMultipart upload.
@@ -2702,26 +2701,24 @@ func testUploadPartPanFSPathHandler(obj ObjectLayer, instanceType, bucketName st
 }
 
 func TestUploadPartPanFSPathHandlerOverwritePart(t *testing.T) {
-	ExecPanFSObjectLayerAPITest(t, testUploadPartPanFSPathHandler,
+	ExecPanFSObjectLayerAPITest(t, testUploadPartPanFSPathHandlerOverwritePart,
 		[]string{"NewMultipart", "PutObjectPart", "CompleteMultipart"})
 }
 
 func testUploadPartPanFSPathHandlerOverwritePart(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
 	credentials auth.Credentials, t *testing.T,
 ) {
-	var (
-		oneMiB int64 = 1024 * 1024
-	)
+	var oneMiB int64 = 1024 * 1024
 	fs := obj.(*PANFSObjects)
 	objectName := getRandomObjectName()
 	// Test description:
-	//Upload parts 1,2,3 -> Complete, validate object
+	// Upload parts 1,2,3 -> Complete, validate object
 
 	// Upload parts 1,2,3 -> Complete, validate object
 	rec := httptest.NewRecorder()
 
 	// Test description:
-	//Upload parts 1*,2,3 -> upload part 1 again -> Complete, validate object. (part 1 will be overwritten)
+	// Upload parts 1*,2,3 -> upload part 1 again -> Complete, validate object. (part 1 will be overwritten)
 	req, err := newTestSignedRequestV4(http.MethodPost, getNewMultipartURL("", bucketName, objectName),
 		0, nil, credentials.AccessKey, credentials.SecretKey, nil)
 	if err != nil {

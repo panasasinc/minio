@@ -129,7 +129,6 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	// No need to take a lock when bgAppend called from CompleteMultipartUpload which has been already taken the lock
 	if needFlock {
 		if !file.flock.TryLock() {
-			//logger.Info("[backgroundAppend] [%s] Cannot lock file - there is in progress", uid)
 			return
 		}
 		defer file.flock.Unlock()
@@ -153,7 +152,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		resetLimit, resetCount                             = 3, 0
 	)
 	initBGAppend := func() {
-		//Since we append sequentially nextPartNumber will always be len(fsParts.Appended)+1
+		// Since we append sequentially nextPartNumber will always be len(fsParts.Appended)+1
 		initialAppendedLen = len(fsParts.Parts)
 		nextPartNumber = initialAppendedLen + 1
 		// get appended file size and define variable to calculate appended file size based on mparts.json info
@@ -242,7 +241,6 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 
 	// No parts appended - just return. No need to update meta file
 	if initialAppendedLen == len(fsParts.Parts) {
-		//logger.Info("[backgroundAppend] [%s] No parts appended - return", uid)
 		return
 	}
 
