@@ -63,10 +63,22 @@ func (fs *PANFSObjects) getUploadIDFilePartsPath(bucketPath, object, uploadID st
 	return pathJoin(fs.getUploadIDDir(bucketPath, object, uploadID), "mparts.json")
 }
 
+func (fs *PANFSObjects) getBackgroundAppendsDir(bucketPath string) string {
+	return pathJoin(bucketPath, panfsS3TmpDir, bgAppendsDirName)
+}
+
 // getObjectBackgroundAppendPath returns path to the requested object according to upload id and bucket path
 // Returns EXPORT/bucket/.s3/tmp/bg-appends/UPLOADID
 func (fs *PANFSObjects) getObjectBackgroundAppendPath(bucketPath, object, uploadID string) string {
-	return pathJoin(bucketPath, panfsS3TmpDir, bgAppendsDirName, uploadID)
+	return pathJoin(fs.getBackgroundAppendsDir(bucketPath), uploadID)
+}
+
+func (fs *PANFSObjects) getDeletionCandidateMarkerFile(uploadDir string) string {
+	return pathJoin(uploadDir, ".scheduled_for_cleanup")
+}
+
+func (fs *PANFSObjects) createDeletionCandidateMarkerFile(dir string) error {
+	return nil
 }
 
 // getPanFSMultipartAppendFile returns and initialize panfsAppendFile struct
@@ -349,7 +361,7 @@ func (fs *PANFSObjects) NewMultipartUpload(ctx context.Context, bucket, object s
 	}
 
 	// Creates dir for background append procedure
-	err = mkdirAll(pathJoin(bucketPath, panfsS3TmpDir, bgAppendsDirName), 0o755)
+	err = mkdirAll(fs.getBackgroundAppendsDir(bucketPath), 0o755)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err
@@ -1100,6 +1112,96 @@ func (fs *PANFSObjects) getAllUploadIDs(ctx context.Context) (result map[string]
 	return
 }
 
+func (fs *PANFSObjects) cleanupStaleMultipartUploads(ctx context.Context) {
+	buckets, err := fs.ListBuckets(ctx, BucketOptions{})
+	if err != nil {
+		return
+	}
+
+	bgAppendDirsForDeletion := make(map[string]string)
+	for _, bucket := range buckets {
+		bucketAppendsDir := fs.getBackgroundAppendsDir(bucket.PanFSPath)
+		appendDirNames, err := readDir(bucketAppendsDir)
+		if err != nil {
+			return
+		}
+		// Background append directories are the IDs of the uploads.
+		for _, uploadID := range appendDirNames {
+			appendDirPath := pathJoin(bucketAppendsDir, uploadID)
+			bgAppendDirsForDeletion[uploadID] = appendDirPath
+		}
+	}
+
+	fs.appendFileMapMu.Lock()
+	expiry := globalAPIConfig.getStaleUploadsExpiry()
+	now := time.Now()
+	for uploadID := range fs.appendFileMap {
+		uploadDir, ok := bgAppendDirsForDeletion[uploadID]
+		if !ok {
+			// Nothing to clean for this upload – it doesn't have
+			// a related background appends directory.
+			continue
+		}
+
+		// If there's has been no progress in this upload for some
+		// time, let's start the expiration procedure.
+		fi, err := fsStatDir(ctx, uploadDir)
+		if err != nil {
+			continue
+		}
+
+		if now.Sub(fi.ModTime()) > expiry {
+			// We start the expiration procedure by first removing
+			// the upload from the in-memory map.
+			delete(fs.appendFileMap, uploadID)
+			continue
+		}
+
+		// Otherwise the upload is still valid (it hasn't expired yet).
+		// Let's remove its directory from the processing queue:
+		delete(bgAppendDirsForDeletion, uploadID)
+
+		// Also, let's make sure no other MinIO instance removes the
+		// directory – let's remove any deletion marker file if
+		// present.
+		markerName := fs.getDeletionCandidateMarkerFile(uploadDir)
+		defer fsRemoveFile(ctx, markerName)
+	}
+	fs.appendFileMapMu.Unlock()
+
+	// What remains in bgAppendDirsForDeletion is a list of
+	// background append dirs for:
+	// - timed out multi-part uploads,
+	// - multi-part uploads performed on other MinIO instances of the
+	//   cluster we have no knowledge of in this instance.
+	//
+	// We don't want to break background appends if this is just a
+	// multi-part upload performed on another MinIO instance.
+	// So to be safe, let's first mark a background appends directory for
+	// deletion with a marker file and only if such a file already exists
+	// and is old, let's delete the directory.
+	// We rely here on the other MinIO instance – if it is still using the
+	// background appends directory, it should delete the marker file
+	// during the next run of the cleanup procedure.
+	expiry = 2 * panbgAppendsCleanupInterval
+	now = time.Now()
+	for _, uploadID := range bgAppendDirsForDeletion {
+		uploadDir := bgAppendDirsForDeletion[uploadID]
+		markerName := fs.getDeletionCandidateMarkerFile(uploadDir)
+		if _, err = os.Create(markerName); err == nil {
+			// Scheduled for deletion
+			continue
+		}
+		fi, err := fsStat(ctx, markerName)
+		if err != nil {
+			continue
+		}
+		if now.Sub(fi.ModTime()) > expiry {
+			fsRemoveFile(ctx, uploadDir)
+		}
+	}
+}
+
 // Removes multipart uploads if any older than `expiry` duration
 // on all buckets for every `cleanupInterval`, this function is
 // blocking and should be run in a go-routine.
@@ -1111,50 +1213,23 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 	defer bgAppendTmpCleaner.Stop()
 
 	for {
+		var timer *time.Timer = nil
+		var timerDuration time.Duration
+
 		select {
 		case <-ctx.Done():
 			return
+
 		case <-bgAppendTmpCleaner.C:
-			foundUploadIDs := fs.getAllUploadIDs(ctx)
+			timer = bgAppendTmpCleaner
+			timerDuration = panbgAppendsCleanupInterval
 
-			// If between getting list of uploads and taking a lock below any bg append adds a new record into the
-			// in-memory map of uploads then the following for-loop will delete it from memory as it was not presented
-			// in disk at the time of read
-
-			// Remove background append entry from the memory
-			fs.appendFileMapMu.Lock()
-			for uploadID := range fs.appendFileMap {
-				_, ok := foundUploadIDs[uploadID]
-				if !ok {
-					delete(fs.appendFileMap, uploadID)
-				}
-			}
-			fs.appendFileMapMu.Unlock()
-
-			// TODO: update in separate story
-			var entries []string
-			buckets, err := fs.ListBuckets(ctx, BucketOptions{})
-			if err != nil {
-				goto resetTimer
-			}
-
-			for _, bucket := range buckets {
-				entries, err = readDir(pathJoin(bucket.PanFSPath, panfsS3TmpDir, bgAppendsDirName))
-				if err != nil {
-					goto resetTimer
-				}
-				for _, entry := range entries {
-					// entry named exactly as upload id
-					_, ok := foundUploadIDs[entry]
-					if !ok {
-						fsRemoveFile(ctx, pathJoin(pathJoin(bucket.PanFSPath, panfsS3TmpDir, bgAppendsDirName, entry)))
-					}
-				}
-			}
-		resetTimer:
-			bgAppendTmpCleaner.Reset(panbgAppendsCleanupInterval)
+			fs.cleanupStaleMultipartUploads(ctx)
 
 		case <-expiryUploadsTimer.C:
+			timer = expiryUploadsTimer
+			timerDuration = globalAPIConfig.getStaleUploadsCleanupInterval()
+
 			expiry := globalAPIConfig.getStaleUploadsExpiry()
 			now := time.Now()
 
@@ -1180,9 +1255,11 @@ func (fs *PANFSObjects) cleanupStaleUploads(ctx context.Context) {
 					fs.appendFileMapMu.Unlock()
 				}
 			}
+		}
 
+		if timer != nil {
 			// Reset for the next interval
-			expiryUploadsTimer.Reset(globalAPIConfig.getStaleUploadsCleanupInterval())
+			timer.Reset(timerDuration)
 		}
 	}
 }
