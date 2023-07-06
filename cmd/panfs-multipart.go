@@ -31,6 +31,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/minio/minio-go/v7/pkg/set"
 	"github.com/minio/minio/internal/filelock"
 	xioutil "github.com/minio/minio/internal/ioutil"
 	"github.com/minio/minio/internal/logger"
@@ -1105,6 +1106,13 @@ func (fs *PANFSObjects) getAllUploadIDs(ctx context.Context) (result map[string]
 }
 
 func (fs *PANFSObjects) cleanupStaleBackgroundAppendFiles(ctx context.Context) {
+	fs.appendFileMapMu.Lock()
+	appendFileMapIDsForDeletion := set.NewStringSet()
+	for uploadID := range fs.appendFileMap {
+		appendFileMapIDsForDeletion.Add(uploadID)
+	}
+	fs.appendFileMapMu.Unlock()
+
 	buckets, err := fs.ListBuckets(ctx, BucketOptions{})
 	if err != nil {
 		return
@@ -1124,16 +1132,31 @@ func (fs *PANFSObjects) cleanupStaleBackgroundAppendFiles(ctx context.Context) {
 		}
 	}
 
+	// WARNING:
+	// If we first get a list of upload directories and then use it to
+	// filter append files and entries in fs.appendFileMap, we create a
+	// race condition where a new multi-part upload could be created after
+	// listing the directories but before filtering the lists.
+	//
+	// To prevent such a race, get the list of upload directories as the
+	// last step before filtering:
 	uploadDirectories := fs.getAllUploadIDs(ctx)
-	for uploadID := range appendFilesForDeletion {
-		_, uploadDirectoryExists := uploadDirectories[uploadID]
 
+	// Filter the items for deletion:
+	for uploadID := range uploadDirectories {
 		// If the upload directory related to the given upload
 		// ID still exists, let's leave the append file.
-		if uploadDirectoryExists {
-			delete(appendFilesForDeletion, uploadID)
-		}
+		delete(appendFilesForDeletion, uploadID)
+
+		appendFileMapIDsForDeletion.Remove(uploadID)
 	}
+
+	fs.appendFileMapMu.Lock()
+	for _, uploadID := range appendFileMapIDsForDeletion.ToSlice() {
+		delete(fs.appendFileMap, uploadID)
+	}
+	fs.appendFileMapMu.Unlock()
+
 	go func() {
 		for _, appendFilePath := range appendFilesForDeletion {
 			fsRemoveFile(ctx, appendFilePath)
