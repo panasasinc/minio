@@ -2711,10 +2711,6 @@ func testUploadPartPanFSPathHandlerOverwritePart(obj ObjectLayer, instanceType, 
 	var oneMiB int64 = 1024 * 1024
 	fs := obj.(*PANFSObjects)
 	objectName := getRandomObjectName()
-	// Test description:
-	// Upload parts 1,2,3 -> Complete, validate object
-
-	// Upload parts 1,2,3 -> Complete, validate object
 	rec := httptest.NewRecorder()
 
 	// Test description:
