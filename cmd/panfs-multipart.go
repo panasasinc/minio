@@ -40,6 +40,7 @@ import (
 
 const (
 	panbgAppendsCleanupInterval = 10 * time.Minute
+	lockFileSuffix              = ".lock"
 )
 
 // Returns EXPORT/bucket/.s3/multipart/SHA256/UPLOADID
@@ -50,7 +51,7 @@ func (fs *PANFSObjects) getUploadIDDir(bucketPath, object, uploadID string) stri
 // getMultipartLockFile returns path to the lock file based on bucket, object and uploadID
 // Returns EXPORT/bucket/.s3/multipart/SHA256/uploadid.lock
 func (fs *PANFSObjects) getMultipartLockFile(bucketPath, object, uploadID string) string {
-	return pathJoin(fs.getMultipartSHADir(bucketPath, object), uploadID+".lock")
+	return pathJoin(fs.getMultipartSHADir(bucketPath, object), uploadID+lockFileSuffix)
 }
 
 // Returns EXPORT/bucket/.s3/multipart/SHA256
@@ -1105,6 +1106,45 @@ func (fs *PANFSObjects) getAllUploadIDs(ctx context.Context) (result map[string]
 	return
 }
 
+// Return all uploads IDs with full path of each upload-id lock file.
+// Do not return an error as this is a lazy operation
+func (fs *PANFSObjects) getAllMultipartLockFiles(ctx context.Context) (result map[string]string) {
+	result = make(map[string]string)
+
+	buckets, err := fs.ListBuckets(ctx, BucketOptions{})
+	if err != nil {
+		return
+	}
+
+	for _, bucket := range buckets {
+		bucketMPartDir := pathJoin(bucket.PanFSPath, panfsS3MultipartDir)
+		objectSHAs, err := readDir(bucketMPartDir)
+		if err != nil {
+			continue
+		}
+		for _, objectSHA := range objectSHAs {
+			files, err := readDir(pathJoin(bucketMPartDir, objectSHA))
+			if err != nil {
+				continue
+			}
+
+			for _, fileName := range files {
+				if !strings.HasSuffix(fileName, lockFileSuffix) {
+					continue
+				}
+				uploadID := strings.TrimSuffix(fileName, lockFileSuffix)
+				lockFile := pathJoin(bucket.PanFSPath, panfsS3MultipartDir, objectSHA, fileName)
+				if _, err := fsStatFile(ctx, lockFile); err != nil {
+					continue
+				}
+				result[uploadID] = lockFile
+			}
+		}
+	}
+
+	return result
+}
+
 func (fs *PANFSObjects) cleanupStaleBackgroundAppendFiles(ctx context.Context) {
 	fs.appendFileMapMu.Lock()
 	appendFileMapIDsForDeletion := set.NewStringSet()
@@ -1157,11 +1197,30 @@ func (fs *PANFSObjects) cleanupStaleBackgroundAppendFiles(ctx context.Context) {
 	}
 	fs.appendFileMapMu.Unlock()
 
-	go func() {
-		for _, appendFilePath := range appendFilesForDeletion {
-			fsRemoveFile(ctx, appendFilePath)
-		}
-	}()
+	if len(appendFilesForDeletion) > 0 {
+		lockFiles := fs.getAllMultipartLockFiles(ctx)
+		go func() {
+			for uploadID, appendFilePath := range appendFilesForDeletion {
+				var lockPath string
+				var lock *filelock.FileLock
+				if lockPath = lockFiles[uploadID]; lockPath != "" {
+					lock, err = filelock.New(lockPath)
+					if err != nil {
+						lock = nil
+					}
+				}
+				if lock != nil {
+					lock.Lock()
+				}
+				fsRemoveFile(ctx, appendFilePath)
+				// TODO: remove the lock file?
+				// fsRemoveFile(ctx, lockPath)
+				if lock != nil {
+					lock.Unlock()
+				}
+			}
+		}()
+	}
 }
 
 // Removes multipart uploads if any older than `expiry` duration
