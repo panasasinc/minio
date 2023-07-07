@@ -606,6 +606,7 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 	}
 
 	meta := newBucketMetadata(bucket)
+	meta.SetCreatedAt(opts.CreatedAt)
 	// Save panfs path with trailing slash
 	meta.PanFSPath = retainSlash(bucketPanFSPath)
 
@@ -671,17 +672,17 @@ func (fs *PANFSObjects) DeleteBucketPolicy(ctx context.Context, bucket string) e
 }
 
 // GetBucketInfo - fetch bucket metadata info.
-func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, opts BucketOptions) (bi BucketInfo, e error) {
+func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, opts BucketOptions) (bi BucketInfo, err error) {
 	// We still have global metabucket here so we need to know whether the target bucket is minio metabucket or not.
 	// There are several calls of GetBucketInfo with `.minio.sys` bucket at the initialization time.
 	// See: listIAMConfigItems.go:listIAMConfigItems
 	var st os.FileInfo
-	st, err := fs.statPanFSBucketDir(ctx, bucket)
-	if err != nil {
-		return bi, toObjectErr(err, bucket)
+
+	var createdTime time.Time
+	if st, err = fs.statPanFSBucketDir(ctx, bucket); err == nil {
+		createdTime = st.ModTime()
 	}
 
-	createdTime := st.ModTime()
 	meta, err := fs.loadBucketMetadata(ctx, bucket, false)
 	if err == nil {
 		createdTime = meta.Created
@@ -742,15 +743,15 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 			continue
 		}
 
+		modTime := meta.Created
 		var fi os.FileInfo
-		fi, err = fsStatVolume(ctx, meta.PanFSPath)
-		if err != nil {
-			continue
+		if fi, err = fsStatVolume(ctx, meta.PanFSPath); err == nil {
+			modTime = fi.ModTime()
 		}
 
 		bucketInfos = append(bucketInfos, BucketInfo{
 			Name:      strings.TrimSuffix(meta.Name, "/"),
-			Created:   fi.ModTime(),
+			Created:   modTime,
 			PanFSPath: meta.PanFSPath,
 		})
 	}
