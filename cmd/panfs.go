@@ -673,24 +673,28 @@ func (fs *PANFSObjects) DeleteBucketPolicy(ctx context.Context, bucket string) e
 
 // GetBucketInfo - fetch bucket metadata info.
 func (fs *PANFSObjects) GetBucketInfo(ctx context.Context, bucket string, opts BucketOptions) (bi BucketInfo, err error) {
-	// We still have global metabucket here so we need to know whether the target bucket is minio metabucket or not.
-	// There are several calls of GetBucketInfo with `.minio.sys` bucket at the initialization time.
-	// See: listIAMConfigItems.go:listIAMConfigItems
-	var st os.FileInfo
-
 	var createdTime time.Time
+	var st os.FileInfo
+	panfsPath := ""
 	if st, err = fs.statPanFSBucketDir(ctx, bucket); err == nil {
 		createdTime = st.ModTime()
 	}
 
-	meta, err := fs.loadBucketMetadata(ctx, bucket, false)
-	if err == nil {
-		createdTime = meta.Created
+	if bucket != minioMetaBucket {
+		var meta BucketMetadata
+		meta, err = fs.loadBucketMetadata(ctx, bucket, true)
+
+		if err != nil {
+			return bi, BucketNotFound{Bucket: bucket}
+		} else {
+			createdTime = meta.Created
+			panfsPath = meta.PanFSPath
+		}
 	}
 
 	bi.Name = bucket
 	bi.Created = createdTime
-	bi.PanFSPath = meta.PanFSPath
+	bi.PanFSPath = panfsPath
 
 	return
 }
