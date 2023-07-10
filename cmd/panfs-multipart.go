@@ -144,32 +144,8 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 	}
 	fsParts := fs.readMPartUploadParts(bucketPath, object, uploadID)
 
-	// requiredAppendFileSize is calculated as sum of all uploaded parts
-	// actualAppendFileSize is a size of current append file
-	var (
-		requiredAppendFileSize, actualAppendFileSize int64 = 0, 0
-		initialAppendedLen, nextPartNumber                 = 0, 0
-		resetLimit, resetCount                             = 3, 0
-	)
-	initBGAppend := func() {
-		// Since we append sequentially nextPartNumber will always be len(fsParts.Appended)+1
-		initialAppendedLen = len(fsParts.Parts)
-		nextPartNumber = initialAppendedLen + 1
-		// get appended file size and define variable to calculate appended file size based on mparts.json info
-		var fi os.FileInfo
-
-		if fi, err = fsStatFile(ctx, file.filePath); err == nil {
-			actualAppendFileSize = fi.Size()
-		} else {
-			actualAppendFileSize = 0
-		}
-
-		if initialAppendedLen == 0 {
-			// Remove appended file if exists. Ignoring an error
-			fsRemoveFile(ctx, file.filePath)
-		}
-	}
-	initBGAppend()
+	initialAppendedLen := len(fsParts.Parts)
+	nextPartNumber := initialAppendedLen + 1
 
 	for {
 		entries, err := readDir(uploadIDDir)
@@ -187,30 +163,10 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 			}
 			if partNumber < nextPartNumber {
 				// Part already appended.
-				requiredAppendFileSize += actualSize
 				continue
 			}
 			if partNumber > nextPartNumber {
 				// Required part number is not yet uploaded.
-				break
-			}
-
-			if requiredAppendFileSize != actualAppendFileSize {
-				// actual append file size is not match to parts sizes from mparts.json -> reset all
-				if err = fsRemoveFile(ctx, file.filePath); err != nil {
-					return
-				}
-				if err = fsRemoveFile(ctx, file.partsInfoFile); err != nil {
-					return
-				}
-				fsParts.Parts = nil
-				initBGAppend()
-				if resetCount >= resetLimit {
-					// If for some reason decoded part size is not match to real part size then we will never reach
-					// the requiredAppendFileSize == actualAppendFileSize condition. So set the limit of attempts for reset
-					break
-				}
-				resetCount++
 				break
 			}
 
