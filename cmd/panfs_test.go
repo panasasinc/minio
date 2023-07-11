@@ -111,7 +111,7 @@ func TestPANFSGetBucketInfo(t *testing.T) {
 	// Test with non-existent bucket
 	_, err = fs.GetBucketInfo(GlobalContext, "a", BucketOptions{})
 	if !isSameType(err, BucketNotFound{}) {
-		t.Fatal("BucketNotFound error not returned")
+		t.Fatalf("Expected error: %v, found: %v", BucketNotFound{}, err)
 	}
 
 	// Check for buckets and should get disk not found.
