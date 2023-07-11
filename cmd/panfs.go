@@ -120,9 +120,9 @@ type PANFSObjects struct {
 // Represents the background append file.
 type panfsAppendFile struct {
 	sync.Mutex
-	flock    *filelock.FileLock
-	parts    []PartInfo // List of parts appended.
-	filePath string     // Absolute path of the file in the temp location.
+	flock         *filelock.FileLock
+	filePath      string // Absolute path of the file in the temp location.
+	partsInfoFile string // Path to the meta file containing list of appended parts
 }
 
 // Initializes meta volume on all the fs path.

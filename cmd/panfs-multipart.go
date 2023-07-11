@@ -83,8 +83,9 @@ func (fs *PANFSObjects) getPanFSMultipartAppendFile(bucketPath, object, uploadID
 	}
 
 	appendFile := &panfsAppendFile{
-		filePath: fs.getObjectBackgroundAppendPath(bucketPath, object, uploadID),
-		flock:    flock,
+		filePath:      fs.getObjectBackgroundAppendPath(bucketPath, object, uploadID),
+		flock:         flock,
+		partsInfoFile: fs.getUploadIDFilePartsPath(bucketPath, object, uploadID),
 	}
 	return appendFile, nil
 }
@@ -148,7 +149,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		return
 	}
 	fsParts := fs.readMPartUploadParts(bucketPath, object, uploadID)
-	// Since we append sequentially nextPartNumber will always be len(fsParts.Appended)+1
+
 	initialAppendedLen := len(fsParts.Parts)
 	nextPartNumber := initialAppendedLen + 1
 
@@ -160,11 +161,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 			break
 		}
 		sort.Strings(entries)
-
 		for _, entry := range entries {
-			if entry == fs.metaJSONFile {
-				continue
-			}
 			partNumber, etag, actualSize, err := fs.decodePartFile(entry)
 			if err != nil {
 				// Skip part files whose name don't match expected format. These could be backend filesystem specific files.
@@ -190,7 +187,6 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 
 			partInfo := PartInfo{PartNumber: partNumber, ETag: etag, ActualSize: actualSize}
 			fsParts.Parts = append(fsParts.Parts, partInfo)
-			file.parts = append(file.parts, partInfo)
 			nextPartNumber++
 		}
 
@@ -227,7 +223,7 @@ func (fs *PANFSObjects) backgroundAppend(ctx context.Context, bucket, object, up
 		logger.LogIf(ctx, err)
 		return
 	}
-	if err = PanRenameFile(panfsPartsTmpPath, fs.getUploadIDFilePartsPath(bucketPath, object, uploadID)); err != nil {
+	if err = PanRenameFile(panfsPartsTmpPath, file.partsInfoFile); err != nil {
 		logger.LogIf(ctx, err)
 		return
 	}
