@@ -1,5 +1,7 @@
 /*
- * MinIO Object Storage (c) 2021 MinIO, Inc.
+ * MinIO Object Storage
+ * Copyright (c) 2021 MinIO, Inc.
+ * Copyright (c) 2022-2023 Panasas, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
