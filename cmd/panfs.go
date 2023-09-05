@@ -185,7 +185,7 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string, metaVolumeFSPath st
 	}
 
 	// Initialize `format.json`, this function also returns.
-	rlk, err := initFormatFS(ctx, fsPath)
+	rlk, err := initFormatFS(ctx, metaVolumeFSPath)
 	if err != nil {
 		return nil, err
 	}
@@ -725,7 +725,7 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		}
 	} else {
 		// Read bucket list from folder where theirs metadata are stored
-		entries, err = readDirWithOpts(pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix), readDirOpts{count: -1, followDirSymlink: true})
+		entries, err = readDirWithOpts(pathJoin(fs.fsMetaPath, minioMetaBucket, bucketMetaPrefix), readDirOpts{count: -1, followDirSymlink: true})
 	}
 
 	if err != nil {
@@ -799,7 +799,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 
 	globalBucketMetadataCache.Delete(bucket)
 	if fs.configAgent == nil {
-		if err = fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket)); err != nil {
+		if err = fsRemoveAll(ctx, pathJoin(fs.fsMetaPath, minioMetaBucket, bucketMetaPrefix, bucket)); err != nil {
 			return toObjectErr(err, bucket)
 		}
 	}
