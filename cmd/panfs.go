@@ -250,7 +250,7 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string, metaVolumeFSPath st
 	fs.fsFormatRlk = rlk
 
 	go fs.cleanupStaleUploads(ctx)
-	go intDataUpdateTracker.start(ctx, fsPath)
+	go intDataUpdateTracker.start(ctx, metaVolumeFSPath)
 
 	// Return successfully initialized object layer.
 	return fs, nil
