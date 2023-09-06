@@ -269,10 +269,11 @@ func (fs *PANFSObjects) SetDriveCounts() []int {
 
 // Shutdown - should be called when process shuts down.
 func (fs *PANFSObjects) Shutdown(ctx context.Context) error {
-	fs.fsFormatRlk.Close()
+	return fs.fsFormatRlk.Close()
 
 	// Cleanup and delete tmp uuid.
-	return fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaTmpBucket, fs.nodeDataSerial))
+	// TODO: clean tmp uuid directory for each bucket (Dmitri Z)
+	//return fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaTmpBucket, fs.nodeDataSerial))
 }
 
 // BackendInfo - returns backend information
