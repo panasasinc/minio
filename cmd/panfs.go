@@ -185,7 +185,7 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string, metaVolumeFSPath st
 	}
 
 	// Initialize `format.json`, this function also returns.
-	rlk, err := initFormatFS(ctx, fsPath)
+	rlk, err := initFormatFS(ctx, metaVolumeFSPath)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func NewPANFSObjectLayer(ctx context.Context, fsPath string, metaVolumeFSPath st
 	fs.fsFormatRlk = rlk
 
 	go fs.cleanupStaleUploads(ctx)
-	go intDataUpdateTracker.start(ctx, fsPath)
+	go intDataUpdateTracker.start(ctx, metaVolumeFSPath)
 
 	// Return successfully initialized object layer.
 	return fs, nil
@@ -269,10 +269,11 @@ func (fs *PANFSObjects) SetDriveCounts() []int {
 
 // Shutdown - should be called when process shuts down.
 func (fs *PANFSObjects) Shutdown(ctx context.Context) error {
-	fs.fsFormatRlk.Close()
+	return fs.fsFormatRlk.Close()
 
 	// Cleanup and delete tmp uuid.
-	return fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaTmpBucket, fs.nodeDataSerial))
+	// TODO: clean tmp uuid directory for each bucket (Dmitri Z)
+	// return fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaTmpBucket, fs.nodeDataSerial))
 }
 
 // BackendInfo - returns backend information
@@ -725,7 +726,7 @@ func (fs *PANFSObjects) listBuckets(ctx context.Context) ([]BucketInfo, error) {
 		}
 	} else {
 		// Read bucket list from folder where theirs metadata are stored
-		entries, err = readDirWithOpts(pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix), readDirOpts{count: -1, followDirSymlink: true})
+		entries, err = readDirWithOpts(pathJoin(fs.fsMetaPath, minioMetaBucket, bucketMetaPrefix), readDirOpts{count: -1, followDirSymlink: true})
 	}
 
 	if err != nil {
@@ -799,7 +800,7 @@ func (fs *PANFSObjects) DeleteBucket(ctx context.Context, bucket string, opts De
 
 	globalBucketMetadataCache.Delete(bucket)
 	if fs.configAgent == nil {
-		if err = fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket)); err != nil {
+		if err = fsRemoveAll(ctx, pathJoin(fs.fsMetaPath, minioMetaBucket, bucketMetaPrefix, bucket)); err != nil {
 			return toObjectErr(err, bucket)
 		}
 	}
