@@ -273,7 +273,7 @@ func (fs *PANFSObjects) Shutdown(ctx context.Context) error {
 
 	// Cleanup and delete tmp uuid.
 	// TODO: clean tmp uuid directory for each bucket (Dmitri Z)
-	//return fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaTmpBucket, fs.nodeDataSerial))
+	// return fsRemoveAll(ctx, pathJoin(fs.fsPath, minioMetaTmpBucket, fs.nodeDataSerial))
 }
 
 // BackendInfo - returns backend information
