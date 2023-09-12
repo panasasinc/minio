@@ -822,13 +822,6 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 			return oi, err
 		}
 
-		// Check whether decoded part size equals to actual size
-		if fi.Size() != actualSize {
-			return oi, InvalidPart{
-				PartNumber: part.PartNumber,
-			}
-		}
-
 		fsMeta.Parts[i] = ObjectPartInfo{
 			Number:     part.PartNumber,
 			Size:       fi.Size(),
@@ -869,18 +862,6 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 			if i == len(parts)-1 {
 				appendFallback = false
 			}
-		}
-	}
-
-	// Check the final file size equal to parts size sum
-	{
-		var fi os.FileInfo
-		fi, err = fsStatFile(ctx, file.filePath)
-		if err != nil {
-			return oi, toObjectErr(err)
-		}
-		if fi.Size() != actualSize {
-			appendFallback = false
 		}
 	}
 
