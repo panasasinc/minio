@@ -880,7 +880,7 @@ func (fs *PANFSObjects) CompleteMultipartUpload(ctx context.Context, bucket stri
 			return oi, toObjectErr(err)
 		}
 		if fi.Size() != objectActualSize {
-			appendFallback = false
+			appendFallback = true
 		}
 	}
 
