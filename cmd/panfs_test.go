@@ -343,7 +343,7 @@ func TestDotS3PrefixCheck(t *testing.T) {
 	}
 }
 
-// // TestPANFSDeleteObject - test fs.DeleteObject() with healthy and corrupted disks
+// TestPANFSDeleteObject - test fs.DeleteObject() with healthy and corrupted disks
 func TestPANFSMakeBucket(t *testing.T) {
 	// Prepare for tests
 	bucketName := getRandomBucketName()
@@ -398,5 +398,14 @@ func TestPANFSMakeBucket(t *testing.T) {
 	err = fs.MakeBucketWithLocation(GlobalContext, getRandomBucketName(), MakeBucketOptions{PanFSBucketPath: disk})
 	if !errors.Is(err, PanFSInvalidBucketPath{BucketPath: disk}) {
 		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: disk}, err)
+	}
+
+	// Test make bucket for nested panfs path (ex: 1st bucket - /path/defaultDir, 2nd - /path/default - this should work)
+	// Previosely created bucket has path - <bucketPath>/innerDir so we attempt to create new one in <bucketPath>/inner
+
+	prefixedBucketPath := pathJoin(bucketPath, "inner")
+	err = fs.MakeBucketWithLocation(GlobalContext, getRandomBucketName(), MakeBucketOptions{PanFSBucketPath: prefixedBucketPath})
+	if !errors.Is(err, PanFSInvalidBucketPath{BucketPath: prefixedBucketPath}) {
+		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: prefixedBucketPath}, err)
 	}
 }

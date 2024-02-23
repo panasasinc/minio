@@ -588,7 +588,6 @@ func (fs *PANFSObjects) MakeBucketWithLocation(ctx context.Context, bucket strin
 		bucketMetaDir = pathJoin(bucketPanFSPath, panfsMetaDir)
 		dirs = append(dirs, bucketPanFSPath)
 	} else {
-		bucketPanFSPath = pathJoin(opts.PanFSBucketPath)
 		bucketMetaDir = pathJoin(bucketPanFSPath, panfsMetaDir)
 	}
 
@@ -1953,16 +1952,17 @@ func (fs *PANFSObjects) getTempDir(bucketDir string) string {
 // function returns an error when new bucket path is on the top of any existing bucket path as well.
 // Example. Existing bucket paths: /a/b/c /a/b/d /a/b1/b2/c3/d4
 // /a/b/c/d /a/b/d/e /a/b1/b2/c3/d4/e5/f	INVALID
-// /a/b/c1 /a/b/f 							OK
+// /a/b/c1 /a/b/f							OK
 // /a/b  /a/b1/c3							INVALID
 func (fs *PANFSObjects) checkBucketPanFSPathNesting(ctx context.Context, path string) error {
 	bucketInfos, err := fs.listBuckets(ctx)
 	if err != nil {
 		return toObjectErr(err)
 	}
+	dirPath := retainSlash(path)
 
 	for _, info := range bucketInfos {
-		if strings.HasPrefix(path, info.PanFSPath) || strings.HasPrefix(info.PanFSPath, path) {
+		if strings.HasPrefix(dirPath, info.PanFSPath) || strings.HasPrefix(info.PanFSPath, dirPath) {
 			return PanFSInvalidBucketPath{BucketPath: path}
 		}
 	}
