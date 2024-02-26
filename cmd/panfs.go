@@ -1951,14 +1951,16 @@ func (fs *PANFSObjects) getTempDir(bucketDir string) string {
 // checkBucketPanFSPathNesting checks whether new bucket path is intersecting with any of existing bucket paths. This
 // function returns an error when new bucket path is on the top of any existing bucket path as well.
 // Example. Existing bucket paths: /a/b/c /a/b/d /a/b1/b2/c3/d4
-// /a/b/c/d /a/b/d/e /a/b1/b2/c3/d4/e5/f	INVALID
+// /a/b/c/d /a/b/d/e /a/b1/b2/c3/d4/e5/f	INVALID: nested bucket path is not allowed
+// /a/b  /a/b1/b2							INVALID: is not allowed to create bucket on top path of existing one
 // /a/b/c1 /a/b/f							OK
-// /a/b  /a/b1/c3							INVALID
+// /a/b1/b2/c3/d							OK
 func (fs *PANFSObjects) checkBucketPanFSPathNesting(ctx context.Context, path string) error {
 	bucketInfos, err := fs.listBuckets(ctx)
 	if err != nil {
 		return toObjectErr(err)
 	}
+	// retain trailing slash so we don't get a match for /a/b if /a/b2 alredy exists
 	dirPath := retainSlash(path)
 
 	for _, info := range bucketInfos {
