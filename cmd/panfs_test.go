@@ -343,7 +343,7 @@ func TestDotS3PrefixCheck(t *testing.T) {
 	}
 }
 
-// // TestPANFSDeleteObject - test fs.DeleteObject() with healthy and corrupted disks
+// TestPANFSDeleteObject - test fs.DeleteObject() with healthy and corrupted disks
 func TestPANFSMakeBucket(t *testing.T) {
 	// Prepare for tests
 	bucketName := getRandomBucketName()
@@ -398,5 +398,14 @@ func TestPANFSMakeBucket(t *testing.T) {
 	err = fs.MakeBucketWithLocation(GlobalContext, getRandomBucketName(), MakeBucketOptions{PanFSBucketPath: disk})
 	if !errors.Is(err, PanFSInvalidBucketPath{BucketPath: disk}) {
 		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: disk}, err)
+	}
+
+	// Make sure it is possible to create - <bucketPath>/inner if <bucketPath>/innerDir already exists
+	// In other words, if the path to a new bucket is a string prefix to an existing bucket path, it should be allowed
+	// Note: in previous test bucket with path innerDir has created created
+	prefixedBucketPath := pathJoin(bucketPath, "inner")
+	err = fs.MakeBucketWithLocation(GlobalContext, getRandomBucketName(), MakeBucketOptions{PanFSBucketPath: prefixedBucketPath})
+	if !errors.Is(err, PanFSInvalidBucketPath{BucketPath: prefixedBucketPath}) {
+		t.Fatalf("Expected error %v, got %v", PanFSInvalidBucketPath{BucketPath: prefixedBucketPath}, err)
 	}
 }
